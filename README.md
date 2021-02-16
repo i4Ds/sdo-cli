@@ -53,6 +53,16 @@ Patch images:
 sdo-cli data patch --path='./data/aia_171_2012_256' --targetpath='./data/aia_171_2012_256_patches' --wavelength='171' --size=32
 ```
 
+## SOoD Anomaly Detection
+
+Under `src/sood` a Solar Out-of-Distribution model based on a context-encoding variational autoencoder by Zimmerer et al. [2], which makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error is implemented. This model allows anomaly detection on both a sample as well as a pixel level.
+
+A full Anomaly Detection pipeline can be examined in the example notebook `notebooks/e2ePipeline.ipynb`. For this start jupyter:
+
+```
+make notebook
+```
+
 ## Troubleshooting
 
 Tensorflow only works with Python versions < 3.9.
@@ -68,4 +78,5 @@ Also refer to this [link](https://www.chrisjmendez.com/2017/08/03/installing-mul
 
 ## References
 
-[1] Ahmadzadeh, Azim and Kempton, J., Dustin, "A Curated Image Parameter Dataset from Solar Dynamics Observatory Mission", Manuscript under review, 2019.
+[1] Ahmadzadeh, Azim, Dustin J. Kempton, and Rafal A. Angryk. "A Curated Image Parameter Data Set from the Solar Dynamics Observatory Mission." The Astrophysical Journal Supplement Series 243.1 (2019): 18.
+[2] Zimmerer, David, et al. "Context-encoding variational autoencoder for unsupervised anomaly detection." arXiv preprint arXiv:1812.05941 (2018).

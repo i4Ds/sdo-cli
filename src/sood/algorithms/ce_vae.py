@@ -14,11 +14,11 @@ from trixi.util.config import monkey_patch_fn_args_as_config
 from trixi.util.pytorchexperimentstub import PytorchExperimentStub
 from trixi.util.pytorchutils import get_smooth_image_gradient
 
-from mood.data.numpy_dataset import get_numpy2d_dataset
-from mood.models.aes import VAE
-from mood.util.ce_noise import get_square_mask, normalize, smooth_tensor
+from sood.data.image_dataset import get_dataset
+from sood.models.aes import VAE
+from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
 import matplotlib.pyplot as plt
-from mood.data.path_dataset import ImageFolderWithPaths
+from sood.data.path_dataset import ImageFolderWithPaths
 from torchvision.utils import save_image
 
 
@@ -80,7 +80,7 @@ class ceVAE:
 
     def train(self):
 
-        train_loader = get_numpy2d_dataset(
+        train_loader = get_dataset(
             base_dir=self.data_dir,
             num_processes=16,
             pin_memory=False,
@@ -88,7 +88,7 @@ class ceVAE:
             mode="train",
             target_size=self.input_shape[2],
         )
-        val_loader = get_numpy2d_dataset(
+        val_loader = get_dataset(
             base_dir=self.data_dir,
             num_processes=8,
             pin_memory=False,
@@ -106,10 +106,6 @@ class ceVAE:
             data_loader_ = tqdm(enumerate(train_loader))
             for batch_idx, data in data_loader_:
                 data = data[0]  # only inputs no labels
-                # plt.imshow(data.numpy()[0, 0, :, :],
-                #            cmap='gray', vmin=0, vmax=1)
-                # plt.savefig('vae_images_encode_decode_%d.png' % batch_idx)
-                # data = data * 2 - 1
                 self.optimizer.zero_grad()
 
                 inpt = data.to(self.device)
@@ -457,7 +453,6 @@ def main(
     data_dir=None,
 ):
 
-    from mood.scripts.evalresults import eval_dir
     from pathlib import Path
     from PIL import Image
     from numpy import asarray
@@ -516,24 +511,6 @@ def main(
                 with open(os.path.join(pred_dir, "predictions.txt"), "a") as target_file:
                     target_file.write(path.name + "," +
                                       str(sample_score) + "\n")
-
-    if run == "test" or run == "all":
-
-        if pred_dir is None:
-            print("Please either give a prediction dir")
-            exit(0)
-        if test_dir is None:
-            print(
-                "Please either give a test dir which contains the test samples "
-                "and for which a test_dir_label folder exists"
-            )
-            exit(0)
-
-        test_dir = test_dir[:-1] if test_dir.endswith("/") else test_dir
-        score = eval_dir(pred_dir=pred_dir, label_dir=test_dir +
-                         f"_label/{mode}", mode=mode)
-
-        print(score)
 
 
 if __name__ == "__main__":

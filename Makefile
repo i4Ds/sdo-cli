@@ -11,5 +11,16 @@ install:
 pip-freeze:
 	pip freeze > requirements.txt
 
-# run: install
-# 	../bin/data_loader args
+notebook:
+	( \
+	  source bin/activate; \
+ 	  trap "deactivate; exit" INT; \
+	  jupyter notebook; \
+	)
+
+visdom:
+	( \
+	  source bin/activate; \
+	  trap "deactivate; exit" INT; \
+	  python3 -m visdom.server -port 8080; \
+	)
