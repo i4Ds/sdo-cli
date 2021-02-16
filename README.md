@@ -55,7 +55,7 @@ sdo-cli data patch --path='./data/aia_171_2012_256' --targetpath='./data/aia_171
 
 ## SOoD Anomaly Detection
 
-Under `src/sood` a Solar Out-of-Distribution model based on a context-encoding variational autoencoder by Zimmerer et al. [2], which makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error is implemented. This model allows anomaly detection on both a sample as well as a pixel level.
+Under `src/sood` a Solar Out-of-Distribution model based on a context-encoding variational autoencoder by Zimmerer et al. [2] is implemented. The model makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error and allows anomaly detection on both a sample as well as a pixel level.
 
 A full Anomaly Detection pipeline can be examined in the example notebook `notebooks/e2ePipeline.ipynb`. For this start jupyter:
 
