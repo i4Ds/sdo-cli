@@ -1,6 +1,6 @@
 # sdo-cli
 
-A practitioners utility for working with SDO data.
+A practitioner's utility for working with SDO data.
 
 ## Setup
 
