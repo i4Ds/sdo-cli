@@ -1,7 +1,10 @@
-# data-loader 
+# data-loader
 
 Loads AIA data from GSU Data Mining Lab API.
 
+The Image Parameter dataset is the result of the following study:
+
+Ahmadzadeh, Azim and Kempton, J., Dustin, "A Curated Image Parameter Dataset from Solar Dynamics Observatory Mission", Manuscript under review, 2019.
 
 ## Links
 

@@ -1,7 +1,8 @@
+# Credit A.Ahmadzadeh, https://bitbucket.org/gsudmlab/imageparams_api/src/master/
 from shapely.geometry import Polygon
 
 
-def convert_boundingpoints_to_pixelunit(polygon: Polygon, cdelt1, cdelt2, crpix1, crpix2, original_w, shrinkage_ratio = 1):
+def convert_boundingpoints_to_pixelunit(polygon: Polygon, cdelt1, cdelt2, crpix1, crpix2, original_w, shrinkage_ratio=1):
     """
     This method converts the points coordinates from arc-sec unit to pixel unit, and meanwhile
     makes 2 modifications:
@@ -21,9 +22,11 @@ def convert_boundingpoints_to_pixelunit(polygon: Polygon, cdelt1, cdelt2, crpix1
             a list of tuples (x, y) instead, you can convert it using `poly = poly.exterior.coords'
     """
     points = polygon.exterior.coords
-    b = [(float(v[0]) / cdelt1 + crpix1, float(v[1]) / cdelt2 + crpix2) for v in points]
+    b = [(float(v[0]) / cdelt1 + crpix1, float(v[1]) / cdelt2 + crpix2)
+         for v in points]
 
     # Shrink and then mirror vertically
-    b = [(v[0] / shrinkage_ratio, (original_w - v[1]) / shrinkage_ratio) for v in b]
+    b = [(v[0] / shrinkage_ratio, (original_w - v[1]) / shrinkage_ratio)
+         for v in b]
 
     return Polygon(b)

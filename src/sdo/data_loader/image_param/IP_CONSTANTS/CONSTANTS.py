@@ -1,3 +1,4 @@
+# Credit A.Ahmadzadeh, https://bitbucket.org/gsudmlab/imageparams_api/src/master/
 """
 This is only to facilitate (and not necessary for) accessing the allowed constants.
 Although for any methods in this project requiring objects of these types, one could

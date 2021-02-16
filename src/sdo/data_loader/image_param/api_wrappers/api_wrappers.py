@@ -1,3 +1,4 @@
+# Credit A.Ahmadzadeh, https://bitbucket.org/gsudmlab/imageparams_api/src/master/
 from PIL import Image
 import numpy as np
 import requests

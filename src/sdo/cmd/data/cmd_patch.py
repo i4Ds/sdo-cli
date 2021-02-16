@@ -27,7 +27,7 @@ from sklearn.feature_extraction import image
 date_format = '%Y-%m-%dT%H:%M:%S'
 
 
-def image_patches(ctx, data_dir, patch_dir, aia_wave=AIA_WAVE.AIA_171):
+def image_patches(ctx, data_dir, patch_dir, patch_size=256, max_patches=64, aia_wave=AIA_WAVE.AIA_171):
     """
     Loads a set of SDO images between start and end from the Georgia State University Data Lab API
 
@@ -50,7 +50,7 @@ def image_patches(ctx, data_dir, patch_dir, aia_wave=AIA_WAVE.AIA_171):
             im = np.array(Image.open(path))
             # TODO find a way to compute overlapping patches
             patches = image.extract_patches_2d(
-                im, (256, 256), random_state=0, max_patches=64)
+                im, (patch_size, patch_size), random_state=0, max_patches=max_patches)
             for i, patch in enumerate(patches):
                 # TODO add some logic for evaluating if the image patch is a valid patch
                 path_patch = Path(patch_dir) / f"{path.stem}__{i}.jpeg"
@@ -65,11 +65,13 @@ def image_patches(ctx, data_dir, patch_dir, aia_wave=AIA_WAVE.AIA_171):
 @click.command("patch", short_help="Generates patches from a set of images")
 @click.option("--path", default="./data", type=click.Path(exists=True, file_okay=False, resolve_path=True))
 @click.option("--targetpath", default="./data_patches/train/aia", type=click.Path(file_okay=False, resolve_path=True))
+@click.option("--size", default=256, type=int)
+@click.option("--max-patches", default=64, type=int)
 @click.option("--wavelength", default='*', type=str, help="Allows to filter the files by wavelength. One of ['94', '131', '171', '193', '211', '304', '335', '1600', '1700']")
 @pass_environment
-def patch(ctx, path, targetpath, wavelength):
+def patch(ctx, path, targetpath, size, max_patches, wavelength):
     """Loads a set of SDO images between start and end from the Georgia State University Data Lab API."""
     ctx.log("Starting to generate patches...")
     ctx.vlog(
         f"with options: source dir {path}, target dir {targetpath}, wavelength {wavelength}")
-    image_patches(ctx, path, targetpath, wavelength)
+    image_patches(ctx, path, targetpath, size, max_patches, wavelength)

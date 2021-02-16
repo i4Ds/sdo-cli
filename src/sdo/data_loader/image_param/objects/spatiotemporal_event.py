@@ -1,3 +1,4 @@
+# Credit A.Ahmadzadeh, https://bitbucket.org/gsudmlab/imageparams_api/src/master/
 from sdo.data_loader.image_param.IP_CONSTANTS.CONSTANTS import *
 from datetime import datetime
 from shapely.geometry.polygon import Polygon

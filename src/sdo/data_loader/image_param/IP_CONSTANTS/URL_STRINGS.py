@@ -1,3 +1,4 @@
+# Credit A.Ahmadzadeh, https://bitbucket.org/gsudmlab/imageparams_api/src/master/
 """
 This is simply a list of base urls to be manipulated for each query.
 For more details see: http://dmlab.cs.gsu.edu/dmlabapi/
