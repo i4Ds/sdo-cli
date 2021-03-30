@@ -11,7 +11,7 @@ from torch import optim
 from tqdm import tqdm
 from trixi.logger import PytorchExperimentLogger
 from trixi.util.config import monkey_patch_fn_args_as_config
-from trixi.util.pytorchexperimentstub import PytorchExperimentStub
+from sood.util.pytorchexperimentstub import PytorchExperimentStub
 from trixi.util.pytorchutils import get_smooth_image_gradient
 
 from sood.data.image_dataset import get_dataset
@@ -419,7 +419,7 @@ class ceVAE:
 @click.option("-l", "--load-path", type=click.Path(exists=True), required=False, default=None)
 @click.option("-o", "--log-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
 @click.option(
-    "--logger", type=click.Choice(["visdom", "tensorboard"], case_sensitive=False), required=False, default="visdom"
+    "--logger", type=click.Choice(["visdom", "tensorboard", "file"], case_sensitive=False), required=False, default="visdom"
 )
 @click.option("-t", "--test-dir", type=click.Path(exists=True), required=False, default=None)
 @click.option("-p", "--pred-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
