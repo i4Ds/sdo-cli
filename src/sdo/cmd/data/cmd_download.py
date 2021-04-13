@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 import pandas as pd
 import traceback
+import json
 
 from sdo.data_loader.image_param.IP_CONSTANTS.CONSTANTS import *
 from sdo.data_loader.image_param.api_wrappers import api_wrappers as wrappers
@@ -26,7 +27,7 @@ from sdo.data_loader.image_param.utils.coord_convertor import *
 date_format = '%Y-%m-%dT%H%M%S'
 
 
-def load_data(ctx, data_dir, start, end, freq='60min', aia_wave=AIA_WAVE.AIA_171, image_size=IMAGE_SIZE.P2000):
+def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=AIA_WAVE.AIA_171, image_size=IMAGE_SIZE.P2000):
     """
     Loads a set of SDO images between start and end from the Georgia State University Data Lab API
 
@@ -37,6 +38,7 @@ def load_data(ctx, data_dir, start, end, freq='60min', aia_wave=AIA_WAVE.AIA_171
     :param aia_wave: wavelength channel of the image. Either use the class `constants.AIA_WAVE`
                      to provide a valid wavelength, or pass in a string from this list: ['94',
                      '131', '171', '193', '211', '304', '335', '1600', '1700']
+    :param metadata: whether to also download image metadata (Default: False)
     :param image_size: size of the output image (heatmap). Either use the class
            `constants.IMAGE_SIZE` to provide a valid size, or pass in a string from the list: [
            '2k', '512', '256']
@@ -60,8 +62,13 @@ def load_data(ctx, data_dir, start, end, freq='60min', aia_wave=AIA_WAVE.AIA_171
                 ctx.vlog(f"loading image for date {date}")
                 img = wrappers.get_aia_image_jpeg(date, aia_wave, image_size)
                 img.save(path)
-                # header = wrappers.get_aia_imageheader_json(date, aia_wave)
-                # pprint.pprint(header)
+
+                if metadata:
+                    header = wrappers.get_aia_imageheader_json(date, aia_wave)
+                    meta_path = Path(data_dir) / \
+                        f"{date.strftime(date_format)}__{aia_wave}.json"
+                    with open(meta_path, 'w', encoding='utf-8') as f:
+                        json.dump(header, f, ensure_ascii=False, indent=4)
             else:
                 ctx.vlog(f"image for date {date} already present")
         except Exception as e:
@@ -77,11 +84,12 @@ def load_data(ctx, data_dir, start, end, freq='60min', aia_wave=AIA_WAVE.AIA_171
 @click.option("--start", default='2012-12-01T00:00:00', type=click.DateTime(), help="Start date")
 @click.option("--end", default='2012-12-24T23:59:00', type=click.DateTime(), help="End date")
 @click.option("--freq", default='60min', type=str, help="Frequency (any multiple of 6m)")
+@click.option("--with-metadata", is_flag=True, default=False, type=bool, help="Files with image metadata will be downloaded as <filename>.json")
 @click.option("--wavelength", default='171', type=str, help="Allows to filter the files by wavelength. One of ['94', '131', '171', '193', '211', '304', '335', '1600', '1700']")
 @pass_environment
-def download(ctx, path, start, end, freq, wavelength):
+def download(ctx, path, start, end, freq, with_metadata, wavelength):
     """Loads a set of SDO images between start and end from the Georgia State University Data Lab API."""
     ctx.log("Starting to download images...")
     ctx.vlog(
         f"with options: target dir {path}, between {start} and {end} with freq {freq}")
-    load_data(ctx, path, start, end, freq, wavelength)
+    load_data(ctx, path, start, end, freq, with_metadata, wavelength)
