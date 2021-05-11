@@ -10,7 +10,7 @@ from torch import optim
 from tqdm import tqdm
 from trixi.logger import PytorchExperimentLogger
 from trixi.util.config import monkey_patch_fn_args_as_config
-from trixi.util.pytorchexperimentstub import PytorchExperimentStub
+from sood.util.pytorchexperimentstub import PytorchExperimentStub
 from sood.data.image_dataset import get_dataset
 from sood.data.path_dataset import ImageFolderWithPaths
 
