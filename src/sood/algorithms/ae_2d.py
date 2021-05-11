@@ -218,7 +218,7 @@ class AE2D:
 @click.option("-l", "--load-path", type=click.Path(exists=True), required=False, default=None)
 @click.option("-o", "--log-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
 @click.option(
-    "--logger", type=click.Choice(["visdom", "tensorboard"], case_sensitive=False), required=False, default="visdom"
+    "--logger", type=click.Choice(["visdom", "tensorboard", "file"], case_sensitive=False), required=False, default="visdom"
 )
 @click.option("-t", "--test-dir", type=click.Path(exists=True), required=False, default=None)
 @click.option("-p", "--pred-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
