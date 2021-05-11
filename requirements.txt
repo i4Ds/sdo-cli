@@ -129,7 +129,6 @@ rsa==4.7.2
 scikit-image==0.18.1
 scikit-learn==0.22.2.post1
 scipy==1.4.1
--e git+git@github.com:i4Ds/sdo-cli.git@2fe8dd233afb28f42c31219043a27dd0016053ee#egg=sdo_cli&subdirectory=src
 seaborn==0.11.1
 Send2Trash==1.5.0
 Shapely==1.7.1
