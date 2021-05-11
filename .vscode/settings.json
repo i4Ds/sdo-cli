@@ -1,0 +1,5 @@
+{
+  "python.formatting.autopep8Path": "${workspaceFolder}/.venv/bin/autopep8",
+  "python.linting.enabled": true,
+  "python.terminal.activateEnvironment": true
+}

@@ -454,11 +454,8 @@ def main(
 ):
 
     from pathlib import Path
-    from PIL import Image
-    from numpy import asarray
-    from torch.utils.data import DataLoader, Dataset
+    from torch.utils.data import DataLoader
     from torchvision.transforms import Compose, Resize, ToTensor, Grayscale
-    from torchvision import datasets
 
     input_shape = (batch_size, 1, target_size, target_size)
 

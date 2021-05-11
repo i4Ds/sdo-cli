@@ -3,7 +3,7 @@ setup: ## Sets up the dev environment
 
 install:
 	( \
-	  source bin/activate; \
+	  source .venv/bin/activate; \
  	  cd src; \
 	  pip install --editable .; \
 	)
@@ -13,14 +13,14 @@ pip-freeze:
 
 notebook:
 	( \
-	  source bin/activate; \
+	  source .venv/bin/activate; \
  	  trap "deactivate; exit" INT; \
 	  jupyter notebook; \
 	)
 
 visdom:
 	( \
-	  source bin/activate; \
+	  source .venv/bin/activate; \
 	  trap "deactivate; exit" INT; \
 	  python3 -m visdom.server -port 8080; \
 	)
