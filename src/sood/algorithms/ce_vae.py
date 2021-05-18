@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 from sood.data.path_dataset import ImageFolderWithPaths
 from torchvision.utils import save_image
 
+import wandb
+
 
 class ceVAE:
     @monkey_patch_fn_args_as_config
@@ -97,6 +99,8 @@ class ceVAE:
             target_size=self.input_shape[2],
         )
 
+        wandb.init(project='sdo-sood', entity='mariusgiger')
+
         for epoch in range(self.n_epochs):
 
             self.model.train()
@@ -161,6 +165,8 @@ class ceVAE:
                 train_loss += loss.item()
 
                 if batch_idx % self.print_every_iter == 0:
+                    # TODO why normalize by the length of the input?
+                    wandb.log({"loss": f"{loss.item() / len(inpt):.6f}"})
                     status_str = (
                         f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)} "
                         f" ({100.0 * batch_idx / len(train_loader):.0f}%)] Loss: "

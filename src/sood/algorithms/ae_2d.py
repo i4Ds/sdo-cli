@@ -15,6 +15,7 @@ from sood.data.image_dataset import get_dataset
 from sood.data.path_dataset import ImageFolderWithPaths
 
 from sood.models.aes import AE
+from torchvision.utils import save_image
 
 
 class AE2D:
@@ -148,13 +149,13 @@ class AE2D:
 
         time.sleep(10)
 
-    def score_sample(self, np_array):
+    def score_sample(self, data):
 
-        orig_shape = np_array.shape
+        orig_shape = data.shape
         to_transforms = torch.nn.Upsample(
             (self.input_shape[2], self.input_shape[3]), mode="bilinear")
 
-        data_tensor = torch.from_numpy(np_array).float()
+        data_tensor = data
         data_tensor = to_transforms(data_tensor[None])[0]
         slice_scores = []
 
@@ -172,15 +173,15 @@ class AE2D:
 
         return np.max(slice_scores)
 
-    def score_pixels(self, np_array):
+    def score_pixels(self, data, index, file_name):
 
-        orig_shape = np_array.shape
+        orig_shape = data.shape
         to_transforms = torch.nn.Upsample(
             (self.input_shape[2], self.input_shape[3]), mode="bilinear")
         from_transforms = torch.nn.Upsample(
             (orig_shape[1], orig_shape[2]), mode="bilinear")
 
-        data_tensor = torch.from_numpy(np_array).float()
+        data_tensor = data
         data_tensor = to_transforms(data_tensor[None])[0]
         target_tensor = torch.zeros_like(data_tensor)
 
@@ -196,6 +197,7 @@ class AE2D:
                           self.batch_size: (i + 1) * self.batch_size] = loss.cpu()
 
         target_tensor = from_transforms(target_tensor[None])[0]
+        save_image(target_tensor, file_name, normalize=True)
 
         return target_tensor.detach().numpy()
 
