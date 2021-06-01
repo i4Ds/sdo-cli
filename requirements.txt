@@ -42,6 +42,7 @@ GitPython==3.1.17
 google-auth==1.30.0
 google-auth-oauthlib==0.4.4
 graphviz==0.16
+greenlet==1.1.0
 grpcio==1.37.1
 HelioPy==0.15.3
 heliopy-multid==0.0.3
@@ -145,6 +146,7 @@ six==1.16.0
 slackclient==2.9.3
 smmap==4.0.0
 soupsieve==2.2.1
+SQLAlchemy==1.4.17
 subprocess32==3.5.4
 sunpy==2.0.6
 tensorboard==2.5.0
