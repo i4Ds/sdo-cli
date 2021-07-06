@@ -172,11 +172,12 @@ def get_aia_spatiotemporal_json(starttime: datetime,
     response = requests.get(prepared_url)
     return list(response.json())
 
-
 # --------------------------------------------------
 #
 #          HELPER METHODS
 # --------------------------------------------------
+
+
 def convert_param_xml_to_ndarray(xml_content: et) -> np.ndarray:
     """
     converts the content of a retrieved XML file into a `numpy.ndarray` type. The output dimension

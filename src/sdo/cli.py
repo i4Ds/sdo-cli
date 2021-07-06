@@ -53,7 +53,8 @@ class SolarDynamicsObservatoryCLI(click.MultiCommand):
 @click.command(cls=SolarDynamicsObservatoryCLI, context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--home",
-    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    type=click.Path(exists=False, file_okay=False, resolve_path=True),
+    default="./.sdo-cli",
     help="Changes the folder to operate on.",
 )
 @click.option("-v", "--verbose", is_flag=True, help="Enables verbose mode.")
@@ -63,3 +64,13 @@ def cli(ctx, verbose, home):
     ctx.verbose = verbose
     if home is not None:
         ctx.home = home
+
+    if os.path.exists(home) and not os.path.isdir(home):
+        raise ValueError(home + " is not a directory")
+
+    if not os.path.exists(home):
+        os.makedirs(home)
+
+
+if __name__ == '__main__':
+    cli()  # pylint: disable=no-value-for-parameter

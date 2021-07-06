@@ -6,6 +6,7 @@ from math import ceil
 import click
 import numpy as np
 import torch
+from torch import nn
 import torch.distributions as dist
 from torch import optim
 from tqdm import tqdm
@@ -20,6 +21,10 @@ from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
 import matplotlib.pyplot as plt
 from sood.data.path_dataset import ImageFolderWithPaths
 from torchvision.utils import save_image
+from pathlib import Path
+import datetime
+from torch.utils.data import DataLoader
+from torchvision.transforms import Compose, Resize, ToTensor, Grayscale
 
 import wandb
 
@@ -55,6 +60,7 @@ class ceVAE:
         self.input_shape = input_shape
         self.logger = logger
         self.data_dir = data_dir
+        self.log_dir = log_dir
 
         log_dict = {}
         if logger is not None:
@@ -228,6 +234,23 @@ class ceVAE:
         self.tx.save_model(self.model, "vae_final")
 
         time.sleep(10)
+
+    # https://towardsdatascience.com/variational-autoencoder-demystified-with-pytorch-implementation-3a06bee395ed
+    def generate(self, n_samples=16, mu=None, std=None):
+        if mu is None:
+            mu = torch.zeros_like(torch.empty(self.z_dim, 1, 1))
+        if std is None:
+            std = torch.ones_like(torch.empty(self.z_dim, 1, 1))
+
+        p = torch.distributions.Normal(mu, std)
+        z = p.rsample((n_samples,))
+
+        with torch.no_grad():
+            pred = self.model.decode(z.to(self.device)).cpu()
+
+        file_name = Path(self.log_dir) / \
+            (datetime.datetime.now().isoformat() + "_generated.jpeg")
+        save_image(pred, file_name, normalize=True)
 
     def score_sample(self, data):
 
@@ -413,7 +436,7 @@ class ceVAE:
 
 @click.option("-m", "--mode", default="pixel", type=click.Choice(["pixel", "sample"], case_sensitive=False))
 @click.option(
-    "-r", "--run", default="train", type=click.Choice(["train", "predict", "test", "all"], case_sensitive=False)
+    "-r", "--run", default="train", type=click.Choice(["train", "predict", "test", "generate", "all"], case_sensitive=False)
 )
 @click.option("--target-size", type=click.IntRange(1, 512, clamp=True), default=128)
 @click.option("--batch-size", type=click.IntRange(1, 512, clamp=True), default=16)
@@ -459,10 +482,6 @@ def main(
     data_dir=None,
 ):
 
-    from pathlib import Path
-    from torch.utils.data import DataLoader
-    from torchvision.transforms import Compose, Resize, ToTensor, Grayscale
-
     input_shape = (batch_size, 1, target_size, target_size)
 
     cevae_algo = ceVAE(
@@ -485,8 +504,10 @@ def main(
     if run == "train" or run == "all":
         cevae_algo.train()
 
-    if run == "predict" or run == "all":
+    if run == "generate" or run == "all":
+        cevae_algo.generate()
 
+    if run == "predict" or run == "all":
         if pred_dir is None and log_dir is not None:
             pred_dir = os.path.join(cevae_algo.tx.elog.work_dir, "predictions")
             os.makedirs(pred_dir, exist_ok=True)
@@ -517,5 +538,4 @@ def main(
 
 
 if __name__ == "__main__":
-
     main()
