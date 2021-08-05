@@ -8,6 +8,12 @@ install:
 	  pip install --editable .; \
 	)
 
+dev: 
+	docker compose up 
+
+dev-down:
+	docker compose down --remove-orphans --volumes   
+
 pip-freeze:
 	pip freeze > requirements.txt
 

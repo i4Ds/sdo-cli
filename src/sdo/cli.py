@@ -3,6 +3,8 @@ import sys
 
 import click
 import traceback
+from dotenv import load_dotenv
+load_dotenv()
 
 
 CONTEXT_SETTINGS = dict(auto_envvar_prefix="SDO")
