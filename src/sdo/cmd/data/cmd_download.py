@@ -1,33 +1,22 @@
-from sdo.cli import pass_environment
+import os
+import traceback
+from pathlib import Path
 
 import click
-
-import cv2
-import numpy as np
-from io import BytesIO
-from datetime import datetime, timedelta
-from shapely.geometry import Polygon
-from matplotlib.colors import Normalize
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import imshow
-from PIL import Image, ImageDraw
-import pprint
-import os
-from pathlib import Path
 import pandas as pd
-import traceback
-import json
-
-from sdo.data_loader.image_param.IP_CONSTANTS.CONSTANTS import *
+from sdo.cli import pass_environment
 from sdo.data_loader.image_param.api_wrappers import api_wrappers as wrappers
-from sdo.data_loader.image_param.objects.spatiotemporal_event import SpatioTemporalEvent
+from sdo.data_loader.image_param.IP_CONSTANTS.CONSTANTS import *
 from sdo.data_loader.image_param.utils.coord_convertor import *
-
+from sunpy import timeseries as ts
+from sunpy.net import Fido
+from sunpy.net import attrs as a
+import csv
 
 date_format = '%Y-%m-%dT%H%M%S'
 
 
-def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=AIA_WAVE.AIA_171, image_size=IMAGE_SIZE.P2000):
+def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=AIA_WAVE.AIA_171, image_size=IMAGE_SIZE.P2000, max_flux=None, min_flux=None):
     """
     Loads a set of SDO images between start and end from the Georgia State University Data Lab API
 
@@ -54,27 +43,68 @@ def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=
 
     existing = set(Path(data_dir).rglob(f'*__{aia_wave}.jpeg'))
     ctx.log(f"loading data for {len(dates)} images between {start} and {end}")
+
+    meta_path = Path(data_dir) / "meta.csv"
+    if metadata:
+        with open(meta_path, 'w', encoding='utf-8') as f:
+            writer = csv.DictWriter(
+                f, fieldnames=['QUALITY', 'DSUN', 'X0', 'R_SUN', 'Y0', 'CDELT', 'FILE_NAME'])
+            writer.writeheader()
+            ctx.log(f"writing metadata to {meta_path}")
+
     for date in dates:
         try:
-            path = Path(data_dir) / \
-                f"{date.strftime(date_format)}__{aia_wave}.jpeg"
+            file_name = f"{date.strftime(date_format)}__{aia_wave}.jpeg"
+            path = Path(data_dir) / file_name
+
             if path not in existing:
+                if max_flux != None:
+                    peak_flux = get_peak_flux_at_time(date)
+                    if peak_flux >= max_flux:
+                        ctx.vlog(
+                            f"peak flux {format(peak_flux, '.17f')} is above max flux {format(max_flux, '.17f')} at {date}, skipping")
+                        continue
+                if min_flux != None:
+                    peak_flux = get_peak_flux_at_time(date)
+                    if peak_flux <= min_flux:
+                        ctx.vlog(
+                            f"peak flux {format(peak_flux, '.17f')} is below min flux {format(min_flux, '.17f')} at {date}, skipping")
+                        continue
+
                 ctx.vlog(f"loading image for date {date}")
                 img = wrappers.get_aia_image_jpeg(date, aia_wave, image_size)
                 img.save(path)
-
-                if metadata:
-                    header = wrappers.get_aia_imageheader_json(date, aia_wave)
-                    meta_path = Path(data_dir) / \
-                        f"{date.strftime(date_format)}__{aia_wave}.json"
-                    with open(meta_path, 'w', encoding='utf-8') as f:
-                        json.dump(header, f, ensure_ascii=False, indent=4)
             else:
                 ctx.vlog(f"image for date {date} already present")
+
+            if metadata:
+                header = wrappers.get_aia_imageheader_json(date, aia_wave)
+                header["file_name"] = file_name
+
+                with open(meta_path, 'a', encoding='utf-8') as f:
+                    writer = csv.DictWriter(
+                        f, fieldnames=['QUALITY', 'DSUN', 'X0', 'R_SUN', 'Y0', 'CDELT', 'file_name'])
+                    writer.writerow(header)
         except Exception as e:
             ctx.log(e)
             traceback.print_exc()
             pass
+
+
+def get_peak_flux_at_time(datetime):
+    # https://github.com/sunpy/sunpy/blob/master/sunpy/timeseries/sources/goes.py
+    # https://ngdc.noaa.gov/stp/satellite/goes/doc/GOES_XRS_readme.pdf
+    goes_short_key = 'xrsa'
+    goes_long_key = 'xrsb'
+    search_result = Fido.search(a.Time(datetime, datetime), a.Instrument.xrs)
+    download_result = Fido.fetch(search_result)
+    goes_ts = ts.TimeSeries(download_result)
+    goes_ts_df = goes_ts.to_dataframe()
+    goes_at_time = goes_ts_df.iloc[goes_ts_df.index.get_loc(
+        datetime, method='nearest')][goes_long_key]
+    print("found peak flux at time", str(goes_at_time))
+    return goes_at_time
+
 
 # NOTE m is no longer a valid alias for minute: https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases
 
@@ -84,12 +114,15 @@ def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=
 @click.option("--start", default='2012-12-01T00:00:00', type=click.DateTime(), help="Start date")
 @click.option("--end", default='2012-12-24T23:59:00', type=click.DateTime(), help="End date")
 @click.option("--freq", default='60min', type=str, help="Frequency (any multiple of 6m)")
-@click.option("--with-metadata", is_flag=True, default=False, type=bool, help="Files with image metadata will be downloaded as <filename>.json")
+@click.option("--metadata", is_flag=True, default=False, type=bool, help="A file with image metadata will be downloaded as <datadir>/meta.csv")
 @click.option("--wavelength", default='171', type=str, help="Allows to filter the files by wavelength. One of ['94', '131', '171', '193', '211', '304', '335', '1600', '1700']")
+@click.option("--max-flux", default=None, type=float, help="Allows to filter by GOES x-ray max flux")
+@click.option("--min-flux", default=None, type=float, help="Allows to filter by GOES x-ray min flux")
 @pass_environment
-def download(ctx, path, start, end, freq, with_metadata, wavelength):
+def download(ctx, path, start, end, freq, metadata, wavelength, max_flux, min_flux):
     """Loads a set of SDO images between start and end from the Georgia State University Data Lab API."""
     ctx.log("Starting to download images...")
     ctx.vlog(
         f"with options: target dir {path}, between {start} and {end} with freq {freq}")
-    load_data(ctx, path, start, end, freq, with_metadata, wavelength)
+    load_data(ctx, path, start, end, freq, metadata,
+              wavelength, max_flux=max_flux, min_flux=min_flux)
