@@ -7,6 +7,7 @@ appnope==0.1.2
 APScheduler==3.6.3
 argon2-cffi==20.1.0
 astropy==4.2.1
+astunparse==1.6.3
 async-generator==1.10
 async-timeout==3.0.1
 attrs==21.2.0
@@ -24,6 +25,7 @@ cffi==1.14.5
 chardet==4.0.0
 click==8.0.1
 colorlover==0.3.0
+colour==0.1.5
 configparser==5.0.2
 cycler==0.10.0
 decorator==4.4.2
@@ -37,6 +39,7 @@ extension==1.0.0
 filelock==3.0.12
 Flask==2.0.1
 future==0.18.2
+geojson==2.5.0
 gitdb==4.0.7
 GitPython==3.1.17
 google-auth==1.30.1
@@ -44,6 +47,8 @@ google-auth-oauthlib==0.4.4
 graphviz==0.16
 greenlet==1.1.0
 grpcio==1.38.0
+h5netcdf==0.11.0
+h5py==3.2.1
 HelioPy==0.15.3
 heliopy-multid==0.0.3
 idna==2.10
@@ -102,6 +107,7 @@ pathtools==0.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==8.2.0
+pixiedust==1.1.19
 plotly==4.14.3
 portalocker==2.3.0
 pox==0.2.9
@@ -111,6 +117,7 @@ promise==2.3
 prompt-toolkit==3.0.18
 protobuf==3.17.1
 psutil==5.8.0
+psycopg2-binary==2.9.1
 ptyprocess==0.7.0
 pyasn1==0.4.8
 pyasn1-modules==0.2.8
@@ -122,6 +129,7 @@ pynndescent==0.5.2
 pyparsing==2.4.7
 pyrsistent==0.17.3
 python-dateutil==2.8.1
+python-dotenv==0.19.0
 python-telegram-bot==13.5
 pytz==2021.1
 PyWavelets==1.1.1
@@ -135,6 +143,7 @@ requests-oauthlib==1.3.0
 requests-toolbelt==0.9.1
 retrying==1.3.3
 rsa==4.7.2
+Rx==3.2.0
 scikit-image==0.18.1
 scikit-learn==0.24.2
 scipy==1.6.3
