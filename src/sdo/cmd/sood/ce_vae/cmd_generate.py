@@ -49,7 +49,7 @@ def generate(ctx,
              data_dir):
 
     main(mode=mode,
-         run="train",
+         run="generate",
          target_size=target_size,
          batch_size=batch_size, n_epochs=n_epochs,
          lr=lr,
