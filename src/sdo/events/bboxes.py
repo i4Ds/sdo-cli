@@ -14,8 +14,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 import pandas as pd
-from sqlalchemy.sql.functions import current_date
-from sdo.cmd.events.events import HEKEventManager
+from sdo.events.event_loader import HEKEventManager
 import logging
 
 logging.basicConfig()
