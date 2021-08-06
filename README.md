@@ -53,6 +53,13 @@ Patch images:
 sdo-cli data patch --path='./data/aia_171_2012_256' --targetpath='./data/aia_171_2012_256_patches' --wavelength='171' --size=32
 ```
 
+Loading Events from HEK:
+
+```
+docker-compose up
+sdo-cli events get --start="2012-01-01T00:00:00" --end="2012-01-02T23:59:59" --event-type="AR"
+```
+
 ## SOoD Anomaly Detection
 
 Under `src/sood` a Solar Out-of-Distribution model based on a context-encoding variational autoencoder by Zimmerer et al. [2] is implemented. The model makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error and allows anomaly detection on both a sample as well as a pixel level.

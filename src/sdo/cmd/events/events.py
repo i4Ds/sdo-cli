@@ -1,10 +1,13 @@
-from functools import total_ordering
+from shapely.geometry.polygon import Polygon
+from datetime import datetime, timedelta
+from shapely import wkt
+from shapely.geometry.point import Point
+from shapely.geometry import Polygon
 import pandas as pd
 from sunpy.net import attrs as a
 from sunpy.net import Fido
-from sunpy.net import hek
 from sqlalchemy import create_engine
-from sqlalchemy import Table, Column, String, MetaData, DateTime, Sequence, Integer, UniqueConstraint, and_
+from sqlalchemy import Table, Column, String, MetaData, DateTime, Sequence, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import insert
 import logging
 import datetime
@@ -27,35 +30,6 @@ logger.setLevel(logging.INFO)
 # https://zenodo.org/record/48187
 # https://dmlab.cs.gsu.edu/solar/
 # https://docs.sqlalchemy.org/en/13/dialects/postgresql.html#insert-on-conflict-upsert
-
-
-class EVENT_TYPE:
-    """
-    The event types of the solar events. (More: https://www.lmsal.com/hek/VOEvent_Spec.html)
-    """
-    AR = 'ar'  # Active Region
-    CH = 'ch'  # Coronal Hole
-    FI = 'fi'  # Filament
-
-    CE = 'ce'  # Coronal Mass Ejection (CME)
-    FL = 'fl'  # Flare
-
-    # FilamentEruption
-    SG = "sg"  # Sigmoid
-    CR = "cr"  # Coronal Rain
-
-    # Kanzelhöhe
-    # FI = 'fi'  # Filament
-
-    @staticmethod
-    def convert(et):
-        return {
-            'ar': EVENT_TYPE.AR,
-            'ch': EVENT_TYPE.CH,
-            'ce': EVENT_TYPE.CE,
-            'fi': EVENT_TYPE.FI,
-            'fl': EVENT_TYPE.FL,
-        }.get(et, 'ar')  # default is 'ar'
 
 
 class HEKEventManager():
@@ -162,6 +136,34 @@ class HEKEventManager():
             if event_type is not None:
                 select_statement = select_statement.where(
                     self.events_table.c.event_type == event_type)
+
+            result_set = conn.execute(select_statement)
+            df = pd.DataFrame(result_set)
+            if result_set.rowcount > 0:
+                df.columns = result_set.keys()
+
+            logger.info(f"retrieved {len(df)} events from local database")
+            return df
+
+    def find_events_at(self, timestamp, event_types=None, observatory=None, instrument=None, allowed_time_diff_seconds=30) -> pd.DataFrame:
+        with self.db.connect() as conn:
+            select_statement = self.events_table.select()
+            select_statement = select_statement.where(
+                self.events_table.c.event_starttime <= timestamp + datetime.timedelta(seconds=allowed_time_diff_seconds))
+            select_statement = select_statement.where(
+                self.events_table.c.event_endtime >= timestamp - datetime.timedelta(seconds=allowed_time_diff_seconds))
+
+            if instrument is not None:
+                select_statement = select_statement.where(
+                    self.events_table.c.obs_instrument == instrument)
+
+            if observatory is not None:
+                select_statement = select_statement.where(
+                    self.events_table.c.obs_observatory == observatory)
+
+            if event_types is not None:
+                select_statement = select_statement.where(
+                    self.events_table.c.event_type.in_(event_types))
 
             result_set = conn.execute(select_statement)
             df = pd.DataFrame(result_set)

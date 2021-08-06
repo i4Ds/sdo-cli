@@ -267,3 +267,4 @@ modules.xml
 # End of https://www.gitignore.io/api/pycharm
 
 tmp/
+wandb/
