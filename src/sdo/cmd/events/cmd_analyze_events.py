@@ -1,7 +1,7 @@
 import os
 import click
 from sdo.cli import pass_environment
-from sdo.cmd.events.boxes import compute_ious
+from sdo.events.bboxes import compute_ious
 
 
 @click.command("analyze", short_help="Analyzes model outputs and compares it with events from HEK")

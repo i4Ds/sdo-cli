@@ -1,7 +1,7 @@
 import os
 import click
 from sdo.cli import pass_environment
-from sdo.cmd.events.events import HEKEventManager
+from sdo.events.event_loader import HEKEventManager
 
 
 @click.command("list", short_help="Lists local events from HEK")

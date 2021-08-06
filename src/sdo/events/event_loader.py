@@ -1,8 +1,3 @@
-from shapely.geometry.polygon import Polygon
-from datetime import datetime, timedelta
-from shapely import wkt
-from shapely.geometry.point import Point
-from shapely.geometry import Polygon
 import pandas as pd
 from sunpy.net import attrs as a
 from sunpy.net import Fido
