@@ -3,10 +3,8 @@ import os
 import time
 from math import ceil
 
-import click
 import numpy as np
 import torch
-from torch import nn
 import torch.distributions as dist
 from torch import optim
 from tqdm import tqdm
@@ -434,32 +432,6 @@ class ceVAE:
         self.tx.add_result_without_epoch(val, key)
 
 
-@click.option("-m", "--mode", default="pixel", type=click.Choice(["pixel", "sample"], case_sensitive=False))
-@click.option(
-    "-r", "--run", default="train", type=click.Choice(["train", "predict", "test", "generate", "all"], case_sensitive=False)
-)
-@click.option("--target-size", type=click.IntRange(1, 512, clamp=True), default=128)
-@click.option("--batch-size", type=click.IntRange(1, 512, clamp=True), default=16)
-@click.option("--n-epochs", type=int, default=20)
-@click.option("--lr", type=float, default=1e-4)
-@click.option("--z-dim", type=int, default=128)
-@click.option("-fm", "--fmap-sizes", type=int, multiple=True, default=[16, 64, 256, 1024])
-@click.option("--print-every-iter", type=int, default=100)
-@click.option("-l", "--load-path", type=click.Path(exists=True), required=False, default=None)
-@click.option("-o", "--log-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
-@click.option(
-    "--logger", type=click.Choice(["visdom", "tensorboard", "file"], case_sensitive=False), required=False, default="visdom"
-)
-@click.option("-t", "--test-dir", type=click.Path(exists=True), required=False, default=None)
-@click.option("-p", "--pred-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
-@click.option("-d", "--data-dir", type=click.Path(exists=True), required=True, default=None)
-@click.option("--use-geco", type=bool, is_flag=True, default=False)
-@click.option("--beta", type=float, default=0.01)
-@click.option("--ce-factor", type=click.FloatRange(0.0, 1.0, clamp=True), default=0.5)
-@click.option(
-    "--score-mode", type=click.Choice(["rec", "grad", "combi"], case_sensitive=False), required=False, default="rec"
-)
-@click.command()
 def main(
     mode="pixel",
     run="train",
@@ -501,13 +473,13 @@ def main(
         data_dir=data_dir,
     )
 
-    if run == "train" or run == "all":
+    if run == "train":
         cevae_algo.train()
 
-    if run == "generate" or run == "all":
+    if run == "generate":
         cevae_algo.generate()
 
-    if run == "predict" or run == "all":
+    if run == "predict":
         if pred_dir is None and log_dir is not None:
             pred_dir = os.path.join(cevae_algo.tx.elog.work_dir, "predictions")
             os.makedirs(pred_dir, exist_ok=True)
