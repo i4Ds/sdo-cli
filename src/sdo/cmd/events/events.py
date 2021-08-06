@@ -145,7 +145,7 @@ class HEKEventManager():
             logger.info(f"retrieved {len(df)} events from local database")
             return df
 
-    def find_events_during(self, timestamp, event_type=None, observatory=None, allowed_time_diff_seconds=30) -> pd.DataFrame:
+    def find_events_at(self, timestamp, event_types=None, observatory=None, instrument=None, allowed_time_diff_seconds=30) -> pd.DataFrame:
         with self.db.connect() as conn:
             select_statement = self.events_table.select()
             select_statement = select_statement.where(
@@ -153,13 +153,17 @@ class HEKEventManager():
             select_statement = select_statement.where(
                 self.events_table.c.event_endtime >= timestamp - datetime.timedelta(seconds=allowed_time_diff_seconds))
 
+            if instrument is not None:
+                select_statement = select_statement.where(
+                    self.events_table.c.obs_instrument == instrument)
+
             if observatory is not None:
                 select_statement = select_statement.where(
                     self.events_table.c.obs_observatory == observatory)
 
-            if event_type is not None:
+            if event_types is not None:
                 select_statement = select_statement.where(
-                    self.events_table.c.event_type == event_type)
+                    self.events_table.c.event_type.in_(event_types))
 
             result_set = conn.execute(select_statement)
             df = pd.DataFrame(result_set)

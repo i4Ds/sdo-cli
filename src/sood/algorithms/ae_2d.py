@@ -3,7 +3,6 @@ import os
 import time
 from math import ceil
 
-import click
 import numpy as np
 import torch
 from torch import optim
@@ -206,26 +205,6 @@ class AE2D:
         self.tx.print(*args)
 
 
-@click.option("-m", "--mode", default="pixel", type=click.Choice(["pixel", "sample"], case_sensitive=False))
-@click.option(
-    "-r", "--run", default="train", type=click.Choice(["train", "predict", "test", "all"], case_sensitive=False)
-)
-@click.option("--target-size", type=click.IntRange(1, 512, clamp=True), default=128)
-@click.option("--batch-size", type=click.IntRange(1, 512, clamp=True), default=16)
-@click.option("--n-epochs", type=int, default=20)
-@click.option("--lr", type=float, default=1e-4)
-@click.option("--z-dim", type=int, default=128)
-@click.option("-fm", "--fmap-sizes", type=int, multiple=True, default=[16, 64, 256, 1024])
-@click.option("--print-every-iter", type=int, default=100)
-@click.option("-l", "--load-path", type=click.Path(exists=True), required=False, default=None)
-@click.option("-o", "--log-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
-@click.option(
-    "--logger", type=click.Choice(["visdom", "tensorboard", "file"], case_sensitive=False), required=False, default="visdom"
-)
-@click.option("-t", "--test-dir", type=click.Path(exists=True), required=False, default=None)
-@click.option("-p", "--pred-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
-@click.option("-d", "--data-dir", type=click.Path(exists=True), required=True, default=None)
-@click.command()
 def main(
     mode="pixel",
     run="train",

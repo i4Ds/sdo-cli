@@ -405,8 +405,8 @@ def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_conn
             loader = HEKEventManager(db_connection_string)
             timestamp_str = src_img.name.split("__")[0]
             timestamp = dt.datetime.strptime(timestamp_str, date_format)
-            events_df = loader.find_events_during(
-                timestamp, observatory="SDO", event_type="AR")
+            events_df = loader.find_events_at(
+                timestamp, observatory="SDO", instrument="AIA", event_types=["AR", "FL"])
 
             if len(events_df) < 1:
                 logger.warn(
@@ -414,7 +414,8 @@ def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_conn
                 continue
 
             # filter events that were observed in the respective wavelength, possibly also filter by feature extraction method
-            # events_df = events_df[events_df['obs_channelid'].str.contains("171")]
+            events_df = events_df[events_df['obs_channelid'].str.contains(
+                "171")]
             logger.info(
                 f"after filter {len(events_df)} events")
 
