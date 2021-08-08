@@ -12,6 +12,7 @@ from sunpy import timeseries as ts
 from sunpy.net import Fido
 from sunpy.net import attrs as a
 import csv
+import requests
 
 date_format = '%Y-%m-%dT%H%M%S'
 
@@ -85,6 +86,10 @@ def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=
                     writer = csv.DictWriter(
                         f, fieldnames=['QUALITY', 'DSUN', 'X0', 'R_SUN', 'Y0', 'CDELT', 'file_name'])
                     writer.writerow(header)
+        except requests.exceptions.Timeout as e:
+            # TODO implement retries? https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
+            ctx.log(e)
+            raise e
         except Exception as e:
             ctx.log(e)
             traceback.print_exc()

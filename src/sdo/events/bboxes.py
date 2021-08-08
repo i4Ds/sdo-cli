@@ -17,9 +17,7 @@ import pandas as pd
 from sdo.events.event_loader import HEKEventManager
 import logging
 
-logging.basicConfig()
 logger = logging.getLogger('HEKEventAnalyzer')
-logger.setLevel(logging.INFO)
 
 
 class EVENT_TYPE:
@@ -299,7 +297,16 @@ def convert_contours_to_polygons(contours, scale=1, min_width=3, min_height=3, m
     return polygons
 
 
-def extract_bounding_boxes_from_anomaly_map(map_path, mask_threshold=20, scale=1, min_width=3, min_height=3, max_width=48, max_height=48):
+def extract_bounding_boxes_from_anomaly_map(map_path,
+                                            mode="simple",
+                                            mask_threshold=20,
+                                            scale=1,
+                                            min_width=2,
+                                            min_height=2,
+                                            max_width=48,
+                                            max_height=48,
+                                            gaussian_filter=False,
+                                            gaussian_filter_size=(5, 5)):
     """
     scale: the scale factor for bounding boxes (default 1)
     """
@@ -307,14 +314,25 @@ def extract_bounding_boxes_from_anomaly_map(map_path, mask_threshold=20, scale=1
     pred_img = Image.open(map_path).convert("L")
     pred_img_arr = np.asarray(pred_img)
 
-    mask_img = pred_img_arr > mask_threshold
-    inverted_pred_img_arr = np.zeros_like(pred_img_arr)
-    inverted_pred_img_arr[mask_img] = pred_img_arr[mask_img]
+    if gaussian_filter:
+        pred_img_arr = cv2.GaussianBlur(pred_img_arr, gaussian_filter_size, 0)
 
-    mask_img = Image.fromarray(np.invert(inverted_pred_img_arr))
+    if mode == "simple":
+        mask_img = pred_img_arr > mask_threshold
+        inverted_pred_img_arr = np.zeros_like(pred_img_arr)
+        inverted_pred_img_arr[mask_img] = pred_img_arr[mask_img]
+        mask_img = inverted_pred_img_arr
+    elif mode == "binary":
+        ret, mask_img = cv2.threshold(
+            pred_img_arr, mask_threshold, 255, cv2.THRESH_BINARY)
+    elif mode == "otsu":
+        ret, mask_img = cv2.threshold(
+            pred_img_arr, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+    else:
+        raise f"thresholding method {mode} not recognized"
 
     contours, hierarchy = cv2.findContours(
-        inverted_pred_img_arr, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)
+        mask_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_TC89_KCOS)
     model_polygons = convert_contours_to_polygons(
         contours, scale=scale, min_width=min_width, min_height=min_height, max_width=max_width, max_height=max_height)
 
@@ -338,7 +356,7 @@ def save_fig_with_hek_bounding_boxes_and_anomalies(img_path, hek_bboxes, hek_pol
     img = img.convert('RGB')
     img_draw = ImageDraw.Draw(img)
 
-# facecolor='burlywood'
+    # facecolor='burlywood'
     fig = plt.figure(figsize=(12, 12))
 
     for poly in hek_polygons:
@@ -377,7 +395,13 @@ def save_fig_with_hek_bounding_boxes_and_anomalies(img_path, hek_bboxes, hek_pol
 date_format = '%Y-%m-%dT%H%M%S'
 
 
-def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_connection_string: str, aia_wave=171, save_fig=True):
+def compute_ious(src_img_path: Path,
+                 sood_map_path: Path,
+                 out_dir: Path,
+                 db_connection_string: str,
+                 aia_wave=171,
+                 hek_event_types=['AR'],
+                 save_fig=True):
     # result should be a csv detailing all intersection over unions
     # all calculations are done based on images that are 2048 x 2048
     if os.path.exists(src_img_path) and not os.path.isdir(src_img_path):
@@ -388,10 +412,13 @@ def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_conn
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
+    logger.info(f"writing outouts to {out_dir}")
+
     iou_path = out_dir / Path("iou.csv")
+    result_cols = ['image', 'iou', 'n_hek_events', 'n_predicted_events']
     with open(iou_path, 'w', encoding='utf-8') as f:
         writer = csv.DictWriter(
-            f, fieldnames=['image', 'iou'])
+            f, fieldnames=result_cols)
         writer.writeheader()
 
     src_images = list(Path(src_img_path).rglob(f'*__{aia_wave}.jpeg'))
@@ -405,7 +432,7 @@ def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_conn
             timestamp_str = src_img.name.split("__")[0]
             timestamp = dt.datetime.strptime(timestamp_str, date_format)
             events_df = loader.find_events_at(
-                timestamp, observatory="SDO", instrument="AIA", event_types=["AR", "FL"])
+                timestamp, observatory="SDO", instrument="AIA", event_types=hek_event_types)
 
             if len(events_df) < 1:
                 logger.warn(
@@ -422,7 +449,7 @@ def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_conn
                 events_df, header)
             map_path = sood_map_path / Path(src_img.name)
             anomaly_boxes = extract_bounding_boxes_from_anomaly_map(
-                map_path, scale=8, mask_threshold=18)
+                map_path, mode="otsu", scale=8)
 
             if save_fig:
                 save_fig_with_hek_bounding_boxes_and_anomalies(
@@ -430,13 +457,17 @@ def compute_ious(src_img_path: Path, sood_map_path: Path, out_dir: Path, db_conn
             iou = calculate_iou(hek_bboxes, anomaly_boxes)
             result = {
                 "iou": iou,
-                "image": src_img.name
+                "image": src_img.name,
+                "n_hek_events": len(hek_bboxes),
+                "n_predicted_events": len(anomaly_boxes)
             }
+
+            # TODO calculate overall iou
             ious.append(result)
         except:
             logger.exception(f"could not process image {src_img.name}")
 
     with open(iou_path, 'a', encoding='utf-8') as f:
         writer = csv.DictWriter(
-            f, fieldnames=['image', 'iou'])
+            f, fieldnames=result_cols)
         writer.writerows(ious)

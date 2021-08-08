@@ -3,9 +3,13 @@ import sys
 
 import click
 import traceback
+import logging
 from dotenv import load_dotenv
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(name)-16s %(levelname)-4s %(message)s')
+logger = logging.getLogger(__name__)
 
 CONTEXT_SETTINGS = dict(auto_envvar_prefix="SDO")
 
@@ -16,15 +20,14 @@ class Environment:
         self.home = os.getcwd()
 
     def log(self, msg, *args):
-        """Logs a message to stderr."""
         if args:
             msg %= args
-        click.echo(msg, file=sys.stderr)
+        logger.info(msg)
 
     def vlog(self, msg, *args):
-        """Logs a message to stderr only if verbose is enabled."""
-        if self.verbose:
-            self.log(msg, *args)
+        if args:
+            msg %= args
+        logger.debug(msg)
 
 
 pass_environment = click.make_pass_decorator(Environment, ensure=True)
@@ -59,11 +62,14 @@ class SolarDynamicsObservatoryCLI(click.MultiCommand):
     default="./.sdo-cli",
     help="Changes the folder to operate on.",
 )
-@click.option("-v", "--verbose", is_flag=True, help="Enables verbose mode.")
+@click.option("-v", "--verbose", is_flag=True, default=False, help="Enables verbose mode.")
 @pass_environment
 def cli(ctx, verbose, home):
     """CLI to manipulate and model SDO data."""
     ctx.verbose = verbose
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
     if home is not None:
         ctx.home = home
 
