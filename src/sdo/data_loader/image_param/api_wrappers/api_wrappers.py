@@ -30,7 +30,7 @@ def get_aia_image_jpeg(starttime: datetime,
     """
     prepared_url = prepare_url_get_aia_image_jpeg(
         starttime, aia_wave, image_size)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     response.raise_for_status()
     img = Image.open(BytesIO(response.content))
     return img
@@ -57,7 +57,7 @@ def get_aia_imageparam_jpeg(starttime: datetime,
     """
     prepared_url = prepare_url_get_aia_imageparam_jpeg(
         starttime, aia_wave, image_size, param_id)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     img = Image.open(BytesIO(response.content))
     return img
 
@@ -76,7 +76,7 @@ def get_aia_imageparam_xml(starttime: datetime, aia_wave: (AIA_WAVE, str)) -> et
     retrieved XML.
     """
     prepared_url = prepare_url_get_aia_imageparam_xml(starttime, aia_wave)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     xml_content = et.fromstring(response.content)
     return xml_content
 
@@ -89,7 +89,7 @@ def get_aia_imageparam_bulk_xml(starttime: datetime,
                                 step=1) -> et:
     prepared_url = prepare_url_get_aia_imageparam_bulk_xml(
         starttime, endtime, aia_wave, limit, offset, step)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     xml_content = et.fromstring(response.content)
     return xml_content
 
@@ -108,7 +108,7 @@ def get_aia_imageparam_json(starttime: datetime, aia_wave: (AIA_WAVE, str)) -> n
     :return: a numpy array of the requested image parameter values.
     """
     prepared_url = prepare_url_get_aia_imageparam_json(starttime, aia_wave)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     return response.json()
 
 
@@ -133,7 +133,7 @@ def get_aia_imageheader_xml(starttime: datetime, aia_wave: (AIA_WAVE, str)) -> e
     :return: a `dict` instance, as the content of the retrieved header.
     """
     prepared_url = prepare_url_get_aia_imageheader_xml(starttime, aia_wave)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     xml_content = et.fromstring(response.content)
     return xml_content
 
@@ -156,7 +156,7 @@ def get_aia_imageheader_json(starttime: datetime, aia_wave: (AIA_WAVE, str)) -> 
     :return: a `dict` instance, as the content of the retrieved header.
     """
     prepared_url = prepare_url_get_aia_imageheader_json(starttime, aia_wave)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     return response.json()
 
 
@@ -169,7 +169,7 @@ def get_aia_spatiotemporal_json(starttime: datetime,
                                 offset) -> list:
     prepared_url = prepare_url_get_aia_spatiotemporal_json(starttime, endtime, table_name,
                                                            predicate, sort_by, limit, offset)
-    response = requests.get(prepared_url)
+    response = requests.get(prepared_url, timeout=30)
     return list(response.json())
 
 # --------------------------------------------------

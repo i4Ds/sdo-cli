@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="sdo-cli",
     version="1.0",
-    packages=["sdo", "sdo.cmd", "sdo.events", "sdo.logger",
+    packages=["sdo", "sdo.cmd", "sdo.events",
               "sdo.data_loader", "sood"],
     include_package_data=True,
     install_requires=["click"],

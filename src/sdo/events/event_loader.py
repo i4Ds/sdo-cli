@@ -1,16 +1,16 @@
+import numpy as np
+import json
 import pandas as pd
 from sunpy.net import attrs as a
 from sunpy.net import Fido
 from sqlalchemy import create_engine
 from sqlalchemy import Table, Column, String, MetaData, DateTime, Sequence, Integer, UniqueConstraint
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import insert, JSONB
 import logging
 import datetime
 
-logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARN)
 logger = logging.getLogger('HEKEventManager')
-logger.setLevel(logging.INFO)
 
 # http://solar.stanford.edu/hekwiki/ApplicationProgrammingInterface?action=print
 # http://dmlab.cs.gsu.edu/dmlabapi/isd_temporal_queries.html
@@ -25,6 +25,21 @@ logger.setLevel(logging.INFO)
 # https://zenodo.org/record/48187
 # https://dmlab.cs.gsu.edu/solar/
 # https://docs.sqlalchemy.org/en/13/dialects/postgresql.html#insert-on-conflict-upsert
+
+
+class NpEncoder(json.JSONEncoder):
+    """
+    https://stackoverflow.com/questions/50916422/python-typeerror-object-of-type-int64-is-not-json-serializable/50916741
+    """
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 
 class HEKEventManager():
@@ -47,6 +62,7 @@ class HEKEventManager():
                                   Column('hpc_bbox', String),
                                   Column('hpc_boundcc', String),
                                   Column('hpc_coord', String),
+                                  Column('full_event', JSONB),
                                   UniqueConstraint('kb_archivid', name='uix_kb_archivid'))
         self.events_table.create(checkfirst=True)
 
@@ -89,6 +105,8 @@ class HEKEventManager():
 
         with self.db.connect() as conn:
             for idx, event in events_df.iterrows():
+                full_event = events_df.iloc[idx].to_dict()
+                full_event_json = json.dumps(full_event, cls=NpEncoder)
                 insert_statement = insert(self.events_table).values(
                     event_type=event["event_type"],
                     event_starttime=event["event_starttime"],
@@ -99,10 +117,16 @@ class HEKEventManager():
                     kb_archivid=event["kb_archivid"],
                     hpc_bbox=event["hpc_bbox"],
                     hpc_boundcc=event["hpc_boundcc"],
-                    hpc_coord=event["hpc_coord"])
+                    hpc_coord=event["hpc_coord"],
+                    # https://www.compose.com/articles/using-json-extensions-in-postgresql-from-python-2/
+                    # https://amercader.net/blog/beware-of-json-fields-in-sqlalchemy/
+                    full_event=full_event_json)
 
-                insert_statement = insert_statement.on_conflict_do_nothing(
-                    index_elements=['kb_archivid'])
+                update_dict = {
+                    c.name: c for c in insert_statement.excluded if not c.primary_key}
+                insert_statement = insert_statement.on_conflict_do_update(
+                    index_elements=['kb_archivid'],
+                    set_=update_dict)
                 conn.execute(insert_statement)
 
         return events_df
