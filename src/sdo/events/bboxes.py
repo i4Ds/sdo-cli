@@ -390,6 +390,7 @@ def save_fig_with_hek_bounding_boxes_and_anomalies(img_path, hek_bboxes, hek_pol
 
     plt.imshow(img)
     plt.savefig(fig_path)
+    plt.close(fig)
 
 
 date_format = '%Y-%m-%dT%H%M%S'
@@ -449,7 +450,7 @@ def compute_ious(src_img_path: Path,
                 events_df, header)
             map_path = sood_map_path / Path(src_img.name)
             anomaly_boxes = extract_bounding_boxes_from_anomaly_map(
-                map_path, mode="otsu", scale=8)
+                map_path, mode="otsu", scale=8, gaussian_filter=False)
 
             if save_fig:
                 save_fig_with_hek_bounding_boxes_and_anomalies(

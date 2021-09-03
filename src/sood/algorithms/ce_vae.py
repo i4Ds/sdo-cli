@@ -354,6 +354,7 @@ class ceVAE:
                 i + 1) * self.batch_size] = pixel_scores.detach().cpu()[:, 0, :]
 
         target_tensor = from_transforms(target_tensor[None])[0]
+        # TODO rather normalize over the whole dataset rather than a single image
         save_image(target_tensor, file_name, normalize=True)
 
         return target_tensor.detach().numpy()

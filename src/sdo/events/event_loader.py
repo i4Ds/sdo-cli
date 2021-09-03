@@ -142,7 +142,7 @@ class HEKEventManager():
             total_events = total_events + len(events_df)
         logger.info(f"retrieved a total of {total_events} from HEK")
 
-    def read_events(self, start=None, end=None, event_type=None) -> pd.DataFrame:
+    def read_events(self, start=None, end=None, observatory=None, instrument=None, event_type=None) -> pd.DataFrame:
         with self.db.connect() as conn:
             select_statement = self.events_table.select()
 
@@ -152,6 +152,15 @@ class HEKEventManager():
             if end is not None:
                 select_statement = select_statement.where(
                     self.events_table.c.event_endtime <= end)
+
+            if instrument is not None:
+                select_statement = select_statement.where(
+                    self.events_table.c.obs_instrument == instrument)
+
+            if observatory is not None:
+                select_statement = select_statement.where(
+                    self.events_table.c.obs_observatory == observatory)
+
             if event_type is not None:
                 select_statement = select_statement.where(
                     self.events_table.c.event_type == event_type)
