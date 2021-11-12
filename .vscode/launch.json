@@ -12,7 +12,13 @@
       "justMyCode": false,
       "program": "${workspaceRoot}/src/sdo/cli.py",
       "console": "integratedTerminal",
-      "args": ["events", "analyze"]
+      "args": [
+        "events",
+        "get",
+        "--start=2011-08-01T00:00:00",
+        "--end=2011-08-02T23:59:59",
+        "--event-type=AR"
+      ]
     }
   ]
 }

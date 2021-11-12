@@ -99,12 +99,20 @@ def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wave=
 def get_peak_flux_at_time(datetime):
     # https://github.com/sunpy/sunpy/blob/master/sunpy/timeseries/sources/goes.py
     # https://ngdc.noaa.gov/stp/satellite/goes/doc/GOES_XRS_readme.pdf
-    goes_short_key = 'xrsa'
     goes_long_key = 'xrsb'
     search_result = Fido.search(a.Time(datetime, datetime), a.Instrument.xrs)
     download_result = Fido.fetch(search_result)
+
     goes_ts = ts.TimeSeries(download_result)
-    goes_ts_df = goes_ts.to_dataframe()
+
+    if isinstance(goes_ts, list):
+        frames = []
+        for goes_ts_frm in goes_ts:
+            frames.append(goes_ts_frm.to_dataframe())
+        goes_ts_df = pd.concat(frames)
+        #goes_ts_df = goes_ts_df.loc[~goes_ts_df.index.duplicated(keep='first')]
+    else:
+        goes_ts_df = goes_ts.to_dataframe()
     goes_at_time = goes_ts_df.iloc[goes_ts_df.index.get_loc(
         datetime, method='nearest')][goes_long_key]
     print("found peak flux at time", str(goes_at_time))
