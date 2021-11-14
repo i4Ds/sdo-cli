@@ -13,7 +13,7 @@ from sunpy.util.datatype_factory_base import NoMatchError
 date_format = '%Y-%m-%d'
 
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("GOES")
 
 

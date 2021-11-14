@@ -268,3 +268,4 @@ modules.xml
 
 tmp/
 wandb/
+model/

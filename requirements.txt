@@ -159,6 +159,7 @@ soupsieve==2.2.1
 SQLAlchemy==1.4.17
 subprocess32==3.5.4
 sunpy==3.0.0
+tenacity==8.0.1
 tensorboard==2.5.0
 tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.0
