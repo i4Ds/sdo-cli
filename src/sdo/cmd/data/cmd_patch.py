@@ -27,7 +27,7 @@ from sklearn.feature_extraction import image
 date_format = '%Y-%m-%dT%H:%M:%S'
 
 
-def image_patches(ctx, data_dir, patch_dir, patch_size=256, max_patches=64, aia_wave=AIA_WAVE.AIA_171):
+def image_patches(ctx, data_dir, patch_dir, patch_size=256, max_patches=64, aia_wave=AIA_WAVE.AIA_171, crop_size=None):
     """
     Loads a set of SDO images between start and end from the Georgia State University Data Lab API
 
@@ -48,6 +48,9 @@ def image_patches(ctx, data_dir, patch_dir, patch_size=256, max_patches=64, aia_
     for path in images:
         try:
             im = np.array(Image.open(path))
+            w, h, c = im.shape
+            if crop_size is not None and w > crop_size and h > crop_size:
+                im = im[crop_size:w-crop_size, crop_size:h-crop_size]
             # TODO find a way to compute overlapping patches
             patches = image.extract_patches_2d(
                 im, (patch_size, patch_size), random_state=0, max_patches=max_patches)
@@ -68,10 +71,12 @@ def image_patches(ctx, data_dir, patch_dir, patch_size=256, max_patches=64, aia_
 @click.option("--size", default=256, type=int)
 @click.option("--max-patches", default=64, type=int)
 @click.option("--wavelength", default='*', type=str, help="Allows to filter the files by wavelength. One of ['94', '131', '171', '193', '211', '304', '335', '1600', '1700']")
+@click.option("--crop-size", default=None, type=int, help="allows cropping the input image by crop size on each side")
 @pass_environment
-def patch(ctx, path, targetpath, size, max_patches, wavelength):
+def patch(ctx, path, targetpath, size, max_patches, wavelength, crop_size):
     """Loads a set of SDO images between start and end from the Georgia State University Data Lab API."""
     ctx.log("Starting to generate patches...")
     ctx.vlog(
-        f"with options: source dir {path}, target dir {targetpath}, wavelength {wavelength}")
-    image_patches(ctx, path, targetpath, size, max_patches, wavelength)
+        f"with options: source dir {path}, target dir {targetpath}, wavelength {wavelength}, crop size {crop_size}")
+    image_patches(ctx, path, targetpath, size,
+                  max_patches, wavelength, crop_size)
