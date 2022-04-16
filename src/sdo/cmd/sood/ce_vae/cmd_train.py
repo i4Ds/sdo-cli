@@ -14,9 +14,6 @@ import click
 @click.option("--print-every-iter", type=int, default=100)
 @click.option("-l", "--load-path", type=click.Path(exists=True), required=False, default=None)
 @click.option("-o", "--log-dir", type=click.Path(exists=True, writable=True), required=False, default=None)
-@click.option(
-    "--logger", type=click.Choice(["visdom", "tensorboard", "file"], case_sensitive=False), required=False, default="visdom"
-)
 @click.option("-d", "--data-dir", type=click.Path(exists=True), required=True, default=None)
 @click.option("--use-geco", type=bool, is_flag=True, default=False)
 @click.option("--beta", type=float, default=0.01)
@@ -42,8 +39,8 @@ def train(ctx,
           print_every_iter,
           load_path,
           log_dir,
-          logger,
-          data_dir, dataset):
+          data_dir,
+          dataset):
 
     main(run="train",
          target_size=target_size,
@@ -58,6 +55,5 @@ def train(ctx,
          print_every_iter=print_every_iter,
          load_path=load_path,
          log_dir=log_dir,
-         logger=logger,
          data_dir=data_dir,
          dataset=dataset)
