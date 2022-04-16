@@ -1,35 +1,29 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
+import datetime
 import os
-import time
 from math import ceil
+from pathlib import Path
 
 import numpy as np
 import torch
 import torch.distributions as dist
-from torch import optim
-from tqdm import tqdm
-from trixi.logger import PytorchExperimentLogger
-from trixi.util.config import monkey_patch_fn_args_as_config
-from sood.util.pytorchexperimentstub import PytorchExperimentStub
-from trixi.util.pytorchutils import get_smooth_image_gradient
-
+import wandb
 from sood.data.image_dataset import get_dataset
+from sood.data.path_dataset import ImageFolderWithPaths
 from sood.data.sdo_ml_v1_dataset import get_sdo_ml_v1_dataset
 from sood.models.aes import VAE
 from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
-import matplotlib.pyplot as plt
-from sood.data.path_dataset import ImageFolderWithPaths
-from torchvision.utils import save_image
-from pathlib import Path
-import datetime
+from sood.util.utils import (get_smooth_image_gradient, load_model,
+                             save_image_grid, save_model)
+from torch import optim
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose, Resize, ToTensor, Grayscale
-
-import wandb
+from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
+from torchvision.utils import save_image
+from tqdm import tqdm
 
 
 class ceVAE:
-    @monkey_patch_fn_args_as_config
+    # TODO store config as file/wandb
     def __init__(
         self,
         input_shape,
@@ -43,7 +37,6 @@ class ceVAE:
         score_mode="combi",
         load_path=None,
         log_dir=None,
-        logger="visdom",
         print_every_iter=100,
         data_dir=None,
         dataset=None
@@ -58,18 +51,15 @@ class ceVAE:
         self.z_dim = z_dim
         self.use_geco = use_geco
         self.input_shape = input_shape
-        self.logger = logger
         self.data_dir = data_dir
-        self.log_dir = log_dir
         self.dataset = dataset
+        self.log_dir = log_dir
+        folder_format = "%Y%m%d-%H%M%S"
+        self.work_dir = Path(
+            log_dir) / Path(f"{datetime.datetime.now().strftime(folder_format)}_ce_vae")
 
-        log_dict = {}
-        if logger is not None:
-            log_dict = {
-                0: (logger),
-            }
-        self.tx = PytorchExperimentStub(
-            name="cevae", base_dir=log_dir, config=fn_args_as_config, loggers=log_dict,)
+        if not os.path.exists(self.work_dir):
+            os.makedirs(self.work_dir)
 
         cuda_available = torch.cuda.is_available()
         self.device = torch.device("cuda" if cuda_available else "cpu")
@@ -83,9 +73,7 @@ class ceVAE:
         self.theta = 1
 
         if load_path is not None:
-            PytorchExperimentLogger.load_model_static(
-                self.model, os.path.join(load_path, "vae_final.pth"))
-            time.sleep(5)
+            load_model(self.model, os.path.join(load_path, "vae_final.pth"))
 
     def train(self):
         if self.dataset == "CuratedImageParameterDataset":
@@ -125,6 +113,7 @@ class ceVAE:
             )
 
         wandb.init(project='sdo-sood', entity='mariusgiger')
+        wandb.watch(self.model, log_freq=100)
 
         for epoch in range(self.n_epochs):
 
@@ -189,37 +178,49 @@ class ceVAE:
                 self.optimizer.step()
                 train_loss += loss.item()
 
+                status_str = (
+                    f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)} "
+                    f" ({100.0 * batch_idx / len(train_loader):.0f}%)] Loss: "
+                    f"{loss.item() / len(inpt):.6f}"
+                )
+                data_loader_.set_description_str(status_str)
+
                 if batch_idx % self.print_every_iter == 0:
-                    # TODO why normalize by the length of the input?
-                    wandb.log({"loss": f"{loss.item() / len(inpt):.6f}"})
-                    status_str = (
-                        f"Train Epoch: {epoch} [{batch_idx}/{len(train_loader)} "
-                        f" ({100.0 * batch_idx / len(train_loader):.0f}%)] Loss: "
-                        f"{loss.item() / len(inpt):.6f}"
-                    )
-                    data_loader_.set_description_str(status_str)
-
                     cnt = epoch * len(train_loader) + batch_idx
+                    losses = {}
 
+                    # VAE
                     if self.ce_factor < 1:
-                        self.tx.l[0].show_image_grid(
-                            inpt, name="Input-VAE", image_args={"normalize": False})
-                        self.tx.l[0].show_image_grid(
-                            x_rec_vae, name="Output-VAE", image_args={"normalize": True})
+                        # image_table = wandb.Table()
+                        # image_table.add_column("Input-VAE", images_t)
+                        # my_table.add_column("class_prediction", predictions_t)
+                        # wandb.log({"mnist_predictions": my_table})
+
+                        save_image_grid(inpt, name="Input-VAE", save_dir=self.work_dir,
+                                        image_args={"normalize": False})
+                        save_image_grid(
+                            x_rec_vae, name="Output-VAE",  save_dir=self.work_dir, image_args={"normalize": True})
 
                         if self.beta > 0:
-                            self.tx.add_result(torch.mean(kl_loss).item(
-                            ), name="Kl-loss", tag="Losses", counter=cnt)
-                        self.tx.add_result(torch.mean(rec_loss_vae).item(
-                        ), name="Rec-loss", tag="Losses", counter=cnt)
-                        self.tx.add_result(
-                            loss_vae.item(), name="Train-loss", tag="Losses", counter=cnt)
+                            losses["Kl-loss"] = torch.mean(kl_loss).item()
 
+                        losses["Rec-loss"] = torch.mean(rec_loss_vae).item()
+                        losses["VAE-Train-loss"] = loss_vae.item()
+
+                    # CE
                     if self.ce_factor > 0:
-                        self.tx.l[0].show_image_grid(
-                            inpt_noisy, name="Input-CE", image_args={"normalize": False})
-                        self.tx.l[0].show_image_grid(
-                            x_rec_ce, name="Output-CE", image_args={"normalize": True})
+                        save_image_grid(
+                            inpt_noisy, name="Input-CE", save_dir=self.work_dir, image_args={"normalize": False})
+                        save_image_grid(
+                            x_rec_ce, name="Output-CE", save_dir=self.work_dir, image_args={"normalize": True})
+
+                        losses["CE-Train-loss"] = loss_ce.item()
+
+                     # TODO why normalize by the length of the input (batch length)?
+                    losses["loss"] = loss.item() / len(inpt)
+                    losses["epoch"] = epoch
+                    losses["counter"] = cnt
+                    wandb.log(losses)
 
             print(
                 f"====> Epoch: {epoch} Average loss: {train_loss / len(train_loader):.4f}")
@@ -243,16 +244,13 @@ class ceVAE:
 
                     val_loss += loss.item()
 
-                self.tx.add_result(
-                    val_loss / len(val_loader), name="Val-Loss", tag="Losses", counter=(epoch + 1) * len(train_loader)
-                )
+                wandb.log({"Val-Loss": val_loss / len(val_loader),
+                          "counter": (epoch + 1) * len(train_loader)})
 
             print(
                 f"====> Epoch: {epoch} Validation loss: {val_loss / len(val_loader):.4f}")
 
-        self.tx.save_model(self.model, "vae_final")
-
-        time.sleep(10)
+        save_model(self.model, "vae_final", model_dir=self.work_dir)
 
     # https://towardsdatascience.com/variational-autoencoder-demystified-with-pytorch-implementation-3a06bee395ed
     def generate(self, n_samples=16, mu=None, std=None):
@@ -284,7 +282,7 @@ class ceVAE:
         for i in range(ceil(orig_shape[0] / self.batch_size)):
             batch = data_tensor[i *
                                 self.batch_size: (i + 1) * self.batch_size].unsqueeze(1)
-            #batch = batch * 2 - 1
+            # batch = batch * 2 - 1
 
             with torch.no_grad():
                 inpt = batch.to(self.device).float()
@@ -364,12 +362,12 @@ class ceVAE:
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8)
 
-            self.tx.elog.show_image_grid(inpt, name="Input", image_args={
-                                         "normalize": True}, n_iter=index)
-            self.tx.elog.show_image_grid(x_rec, name="Output", image_args={
-                                         "normalize": True}, n_iter=index)
-            self.tx.elog.show_image_grid(pixel_scores, name="Scores", image_args={
-                                         "normalize": True}, n_iter=index)
+            save_image_grid(inpt, name="Input", image_args={
+                "normalize": True}, n_iter=index)
+            save_image_grid(x_rec, name="Output", image_args={
+                "normalize": True}, n_iter=index)
+            save_image_grid(pixel_scores, name="Scores", image_args={
+                "normalize": True}, n_iter=index)
 
             target_tensor[i * self.batch_size: (
                 i + 1) * self.batch_size] = pixel_scores.detach().cpu()[:, 0, :]
@@ -380,11 +378,11 @@ class ceVAE:
 
         return target_tensor.detach().numpy()
 
-    @staticmethod
+    @ staticmethod
     def load_trained_model(model, tx, path):
         tx.elog.load_model_static(model=model, model_file=path)
 
-    @staticmethod
+    @ staticmethod
     def kl_loss_fn(z_post, sum_samples=True, correct=False):
         z_prior = dist.Normal(0, 1.0)
         kl_div = dist.kl_divergence(z_post, z_prior)
@@ -397,7 +395,7 @@ class ceVAE:
         else:
             return kl_div
 
-    @staticmethod
+    @ staticmethod
     def rec_loss_fn(recon_x, x, sum_samples=True, correct=False):
         if correct:
             x_dist = dist.Laplace(recon_x, 1.0)
@@ -411,7 +409,7 @@ class ceVAE:
         else:
             return -log_p_x_z
 
-    @staticmethod
+    @ staticmethod
     def get_inpt_grad(model, inpt, err_fn):
         model.zero_grad()
         inpt = inpt.detach()
@@ -426,7 +424,7 @@ class ceVAE:
 
         return torch.abs(grad.detach())
 
-    @staticmethod
+    @ staticmethod
     def geco_beta_update(beta, error_ema, goal, step_size, min_clamp=1e-10, max_clamp=1e4, speedup=None):
         constraint = (error_ema - goal).detach()
         if speedup is not None and constraint > 0.0:
@@ -439,19 +437,11 @@ class ceVAE:
             beta = np.min((beta.item(), max_clamp))
         return beta
 
-    @staticmethod
+    @ staticmethod
     def get_ema(new, old, alpha):
         if old is None:
             return new
         return (1.0 - alpha) * new + alpha * old
-
-    def print(self, *args):
-        print(*args)
-        self.tx.print(*args)
-
-    def log_result(self, val, key=None):
-        self.tx.print(key, val)
-        self.tx.add_result_without_epoch(val, key)
 
 
 def main(
@@ -470,7 +460,6 @@ def main(
     print_every_iter=100,
     load_path=None,
     log_dir=None,
-    logger="visdom",
     test_dir=None,
     pred_dir=None,
     data_dir=None,
@@ -492,7 +481,6 @@ def main(
         score_mode=score_mode,
         print_every_iter=print_every_iter,
         load_path=load_path,
-        logger=logger,
         data_dir=data_dir,
         dataset=dataset
     )
@@ -505,7 +493,7 @@ def main(
 
     if run == "predict":
         if pred_dir is None and log_dir is not None:
-            pred_dir = os.path.join(cevae_algo.tx.elog.work_dir, "predictions")
+            pred_dir = os.path.join(cevae_algo.work_dir, "predictions")
             os.makedirs(pred_dir, exist_ok=True)
         elif pred_dir is None and log_dir is None:
             print("Please either give a log/ output dir or a prediction dir")
@@ -531,7 +519,3 @@ def main(
                 with open(os.path.join(pred_dir, "predictions.txt"), "a") as target_file:
                     target_file.write(path.name + "," +
                                       str(sample_score) + "\n")
-
-
-if __name__ == "__main__":
-    main()
