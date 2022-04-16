@@ -14,6 +14,7 @@ from sood.util.pytorchexperimentstub import PytorchExperimentStub
 from trixi.util.pytorchutils import get_smooth_image_gradient
 
 from sood.data.image_dataset import get_dataset
+from sood.data.sdo_ml_v1_dataset import get_sdo_ml_v1_dataset
 from sood.models.aes import VAE
 from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
 import matplotlib.pyplot as plt
@@ -45,6 +46,7 @@ class ceVAE:
         logger="visdom",
         print_every_iter=100,
         data_dir=None,
+        dataset=None
     ):
 
         self.score_mode = score_mode
@@ -59,6 +61,7 @@ class ceVAE:
         self.logger = logger
         self.data_dir = data_dir
         self.log_dir = log_dir
+        self.dataset = dataset
 
         log_dict = {}
         if logger is not None:
@@ -85,23 +88,41 @@ class ceVAE:
             time.sleep(5)
 
     def train(self):
-
-        train_loader = get_dataset(
-            base_dir=self.data_dir,
-            num_processes=16,
-            pin_memory=False,
-            batch_size=self.batch_size,
-            mode="train",
-            target_size=self.input_shape[2],
-        )
-        val_loader = get_dataset(
-            base_dir=self.data_dir,
-            num_processes=8,
-            pin_memory=False,
-            batch_size=self.batch_size,
-            mode="val",
-            target_size=self.input_shape[2],
-        )
+        if self.dataset == "CuratedImageParameterDataset":
+            train_loader = get_dataset(
+                base_dir=self.data_dir,
+                num_processes=16,
+                pin_memory=False,
+                batch_size=self.batch_size,
+                mode="train",
+                target_size=self.input_shape[2],
+            )
+            val_loader = get_dataset(
+                base_dir=self.data_dir,
+                num_processes=8,
+                pin_memory=False,
+                batch_size=self.batch_size,
+                mode="val",
+                target_size=self.input_shape[2],
+            )
+        elif self.dataset == "SDOMLDatasetV1":
+            # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
+            train_loader = get_sdo_ml_v1_dataset(
+                base_dir=self.data_dir,
+                num_processes=0,
+                pin_memory=False,
+                batch_size=self.batch_size,
+                mode="train",
+                target_size=self.input_shape[2],
+            )
+            val_loader = get_sdo_ml_v1_dataset(
+                base_dir=self.data_dir,
+                num_processes=0,
+                pin_memory=False,
+                batch_size=self.batch_size,
+                mode="val",
+                target_size=self.input_shape[2],
+            )
 
         wandb.init(project='sdo-sood', entity='mariusgiger')
 
@@ -182,7 +203,7 @@ class ceVAE:
 
                     if self.ce_factor < 1:
                         self.tx.l[0].show_image_grid(
-                            inpt, name="Input-VAE", image_args={"normalize": True})
+                            inpt, name="Input-VAE", image_args={"normalize": False})
                         self.tx.l[0].show_image_grid(
                             x_rec_vae, name="Output-VAE", image_args={"normalize": True})
 
@@ -196,7 +217,7 @@ class ceVAE:
 
                     if self.ce_factor > 0:
                         self.tx.l[0].show_image_grid(
-                            inpt_noisy, name="Input-CE", image_args={"normalize": True})
+                            inpt_noisy, name="Input-CE", image_args={"normalize": False})
                         self.tx.l[0].show_image_grid(
                             x_rec_ce, name="Output-CE", image_args={"normalize": True})
 
@@ -453,6 +474,7 @@ def main(
     test_dir=None,
     pred_dir=None,
     data_dir=None,
+    dataset="CuratedImageParameterDataset"
 ):
 
     input_shape = (batch_size, 1, target_size, target_size)
@@ -472,6 +494,7 @@ def main(
         load_path=load_path,
         logger=logger,
         data_dir=data_dir,
+        dataset=dataset
     )
 
     if run == "train":

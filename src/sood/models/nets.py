@@ -72,7 +72,6 @@ class ConvModule(nn.Module):
             self.activation = activation_op(**self.activation_params)
 
     def forward(self, input, conv_add_input=None, normalization_add_input=None, activation_add_input=None):
-
         x = input
 
         if self.conv is not None:

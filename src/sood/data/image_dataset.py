@@ -1,18 +1,7 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
-import fnmatch
-import os
-import random
-import shutil
-import string
-import time
-from abc import abstractmethod
-from collections import defaultdict
-from time import sleep
-
-import numpy as np
-from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import Compose, Resize, ToTensor, Grayscale
+from torch.utils.data import DataLoader
 from torchvision import datasets
+from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
 
 
 def get_transforms(target_size=128):
@@ -81,4 +70,3 @@ def get_dataset(
         drop_last=drop_last,
     )
     return data_loader
-

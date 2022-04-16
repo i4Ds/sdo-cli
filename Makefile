@@ -17,6 +17,9 @@ dev-down:
 pip-freeze:
 	pip freeze > requirements.txt
 
+pip-list-outdated:
+	pip list --outdated
+
 notebook:
 	( \
 	  source .venv/bin/activate; \

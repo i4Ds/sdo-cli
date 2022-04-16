@@ -24,6 +24,9 @@ import click
 @click.option(
     "--score-mode", type=click.Choice(["rec", "grad", "combi"], case_sensitive=False), required=False, default="rec"
 )
+@click.option(
+    "--dataset", type=click.Choice(["CuratedImageParameterDataset", "SDOMLDatasetV1"], case_sensitive=False), required=False, default="CuratedImageParameterDataset"
+)
 @pass_environment
 def train(ctx,
           target_size,
@@ -40,7 +43,7 @@ def train(ctx,
           load_path,
           log_dir,
           logger,
-          data_dir):
+          data_dir, dataset):
 
     main(run="train",
          target_size=target_size,
@@ -56,4 +59,5 @@ def train(ctx,
          load_path=load_path,
          log_dir=log_dir,
          logger=logger,
-         data_dir=data_dir)
+         data_dir=data_dir,
+         dataset=dataset)
