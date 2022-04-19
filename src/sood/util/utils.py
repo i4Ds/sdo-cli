@@ -1,12 +1,13 @@
-import imp
+import json
 import random
 import warnings
 
 import numpy as np
 import torch
-from torchvision.utils import save_image as tv_save_image
+from torchvision.utils import save_image as tv_save_image, make_grid
 import os
 from pathlib import Path
+from PIL import Image
 
 
 def get_vanilla_image_gradient(model, inpt, err_fn, abs=False):
@@ -172,6 +173,24 @@ def load_model(model, model_file, exclude_layers=(), warnings=True):
         return model
     else:
         raise IOError("Model file does not exist!")
+
+
+def tensor_to_image(tensor, **kwargs):
+    grid = make_grid(tensor, **kwargs)
+    # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer
+    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(
+        1, 2, 0).to("cpu", torch.uint8).numpy()
+    im = Image.fromarray(ndarr)
+    return im
+
+
+class PathJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Path):
+            return str(obj)
+
+        # Call the default method for other types
+        return json.JSONEncoder.default(self, obj)
 
 
 def save_image_grid(tensor, name, save_dir, n_iter=None, prefix=False, iter_format="{:05d}", image_args=None):
