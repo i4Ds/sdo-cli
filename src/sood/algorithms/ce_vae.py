@@ -19,8 +19,7 @@ from sood.data.path_dataset import ImageFolderWithPaths
 from sood.data.sdo_ml_v1_dataset import get_sdo_ml_v1_dataset
 from sood.models.aes import VAE
 from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
-from sood.util.utils import (PathJSONEncoder, get_smooth_image_gradient,
-                             load_model, save_image_grid, save_model,
+from sood.util.utils import (get_smooth_image_gradient, save_image_grid,
                              tensor_to_image)
 from torch import optim
 from torch.utils.data import DataLoader
@@ -450,7 +449,6 @@ def main(
         wandb_logger.watch(cevae_algo)
         trainer.fit(model=cevae_algo, train_dataloaders=train_loader,
                     val_dataloaders=val_loader)
-        trainer.save_checkpoint("cevae.ckpt")
 
     if run == "generate":
         cevae_algo.generate()
