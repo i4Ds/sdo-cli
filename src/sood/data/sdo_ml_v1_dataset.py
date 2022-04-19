@@ -6,7 +6,7 @@ from torchvision.transforms import Compose, Resize, Normalize, Lambda
 import math
 
 
-class NumpyDataset(Dataset):
+class SDONumpyDataset(Dataset):
     def __init__(
             self,
             base_dir,
@@ -25,7 +25,7 @@ class NumpyDataset(Dataset):
             data_key (str, optional): [Data key used to load data from the npz array]. Defaults to 'x'.
             transforms ([type], optional): [Transformations to do after loading the data -> pytorch data transforms]. Defaults to None
         """
-
+        # TODO only load required channels
         self.base_dir = base_dir
         self.file_pattern = file_pattern
         self.files = list(Path(base_dir).glob(f'**/{file_pattern}'))
@@ -78,22 +78,23 @@ CHANNEL_PREPROCESS = {
 }
 
 
-def get_default_transforms(target_size=128):
+def get_default_transforms(target_size=128, channel="171"):
     """Returns a Transform which resizes 2D samples (1xHxW) to a target_size (1 x target_size x target_size)
     and then converts them to a pytorch tensor.
     Args:
         target_size (int, optional): [New spatial dimension of the input data]. Defaults to 128.
+        channel (str, optional): [The SDO channel]. Defaults to 171.
     Returns:
         [Transform]
     """
 
     """
     Apply the normalization necessary for the sdo-dataset. Depending on the channel, it:
-      - flip the image vertically
-      - clip the "pixels" data in the predefined range (see above)
-      - apply a log10() on the data
-      - normalize the data to the [0, 1] range
-      - normalize the data around 0 (standard scaling)
+      - flips the image vertically
+      - clips the "pixels" data in the predefined range (see above)
+      - applies a log10() on the data
+      - normalizes the data to the [0, 1] range
+      - normalizes the data around 0 (standard scaling)
 
     :param channel: The kind of data to preprocess
     :param resize: Optional size of image (integer) to resize the image
@@ -102,7 +103,7 @@ def get_default_transforms(target_size=128):
 
     #also refer to https://pytorch.org/vision/stable/transforms.html#
     # https://gitlab.com/jdonzallaz/solarnet-thesis/-/blob/master/solarnet/data/transforms.py
-    preprocess_config = CHANNEL_PREPROCESS[str(171).lower()]
+    preprocess_config = CHANNEL_PREPROCESS[channel.lower()]
 
     if preprocess_config["scaling"] == "log10":
         # TODO why was vflip(x) used here in SolarNet?
@@ -140,13 +141,13 @@ def get_sdo_ml_v1_dataset(
     batch_size=16,
     n_items=None,
     pin_memory=False,
-    num_processes=1,
+    num_workers=0,
     drop_last=False,
     target_size=512,
     file_pattern="*.npz",
-    do_reshuffle=False,
+    shuffle=False,
 ):
-    """Returns a Pytorch DataLoader which loads a NumpyDataset
+    """Returns a Pytorch DataLoader which loads an SDONumpyDataset
     Args:
         base_dir ([str]): [Directory in which the npz files are.]
         mode (str, optional): [train or val, TODO implement train val split]. Defaults to "train".
@@ -154,18 +155,19 @@ def get_sdo_ml_v1_dataset(
         n_items ([int], optional): [Number of items in the dataset, by default number of files in the loaded set 
                                         but can be smaller (uses subset) or larger (uses file multiple times)]. Defaults to None.
         pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
-        num_processes (int, optional): [See pytorch DataLoader]. Defaults to 1.
+        num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
         drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
         target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 512.
         file_pattern (str, optional): [File pattern of files to load from the base_dir]. Defaults to "*.npz".
-        do_reshuffle (bool, optional): [See pytorch DataLoader]. Defaults to False.
+        shuffle (bool, optional): [See pytorch DataLoader]. Defaults to False.
     Returns:
-        [DataLoader]: Pytorch data loader which loads a NumpyDataset
+        [DataLoader]: Pytorch data loader which loads an SDONumpyDataset
     """
 
-    transforms = get_default_transforms(target_size=target_size)
+    transforms = get_default_transforms(
+        target_size=target_size, channel=str(171))
 
-    dataset = NumpyDataset(
+    dataset = SDONumpyDataset(
         base_dir=base_dir,
         mode=mode,
         n_items=n_items,
@@ -176,10 +178,9 @@ def get_sdo_ml_v1_dataset(
     data_loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=do_reshuffle,
-        num_workers=num_processes,
+        shuffle=shuffle,
+        num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=drop_last,
     )
-
     return data_loader

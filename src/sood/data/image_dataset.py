@@ -27,7 +27,7 @@ def get_dataset(
     batch_size=16,
     n_items=None,
     pin_memory=False,
-    num_processes=1,
+    num_workers=0,
     drop_last=False,
     target_size=128,
     file_pattern="*data.npy",
@@ -44,7 +44,7 @@ def get_dataset(
         n_items ([int], optional): [Number of items in on interation, by default number of files in the loaded set 
                                         but can be smaller (uses subset) or larger (uses file multiple times)]. Defaults to None.
         pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
-        num_processes (int, optional): [See pytorch DataLoader]. Defaults to 1.
+        num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
         drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
         target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 128.
         file_pattern (str, optional): [File pattern of files to load from the base_dir]. Defaults to "*data.npy".
@@ -65,7 +65,7 @@ def get_dataset(
         data_set,
         batch_size=batch_size,
         shuffle=do_reshuffle,
-        num_workers=num_processes,
+        num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=drop_last,
     )
