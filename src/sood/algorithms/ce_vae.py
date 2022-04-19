@@ -93,6 +93,7 @@ class ceVAE(pl.LightningModule):
                 n_squares=(0, 3),
             )
             ce_tensor = torch.from_numpy(ce_tensor).float()
+            ce_tensor = ce_tensor.to(self.device)
             inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
 
             inpt_noisy = inpt_noisy.to(self.device)
@@ -128,12 +129,9 @@ class ceVAE(pl.LightningModule):
             self.logger.experiment.log(
                 {"train_images": sample_images})
 
-        self.log('train_loss', loss, on_step=False,
-                 on_epoch=True, prog_bar=True)
-        self.log('train_loss_vae', loss_vae, on_step=False,
-                 on_epoch=True, prog_bar=True)
-        self.log('train_loss_ce', loss_ce, on_step=False,
-                 on_epoch=True, prog_bar=True)
+        self.log('train_loss', loss)
+        self.log('train_loss_vae', loss_vae)
+        self.log('train_loss_ce', loss_ce)
         return {"loss": loss, "loss_vae": loss_vae, "loss_ce": loss_ce, "loss_vae_kl": loss_vae_kl, "loss_vae_rec": loss_vae_rec}
 
     def validation_step(self, batch, batch_idx):
@@ -147,12 +145,9 @@ class ceVAE(pl.LightningModule):
         rec_loss = self.rec_loss_fn(x_rec, x)
         loss = kl_loss + rec_loss * self.theta
 
-        self.log('val_loss', loss, on_step=False,
-                 on_epoch=True, prog_bar=True)
-        self.log('val_loss_kl', kl_loss, on_step=False,
-                 on_epoch=True, prog_bar=True)
-        self.log('val_loss_rec', rec_loss, on_step=False,
-                 on_epoch=True, prog_bar=True)
+        self.log('val_loss', loss)
+        self.log('val_loss_kl', kl_loss)
+        self.log('val_loss_rec', rec_loss)
 
         self.logger.experiment.log(
             {"val_images": [wandb.Image(tensor_to_image(
@@ -440,6 +435,7 @@ def main(
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=n_epochs,
+                             accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
                                  ModelSummary(max_depth=4),
