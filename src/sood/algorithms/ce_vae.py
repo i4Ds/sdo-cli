@@ -63,7 +63,11 @@ class ceVAE:
 
         if not os.path.exists(self.work_dir):
             os.makedirs(self.work_dir)
-            os.makedirs(self.work_dir / Path("config"))
+
+        os.makedirs(self.work_dir / Path("config"), exist_ok=True)
+        os.makedirs(self.work_dir / Path("checkpoint"), exist_ok=True)
+        os.makedirs(self.work_dir / Path("checkpoint"), exist_ok=True)
+        os.makedirs(self.work_dir / Path("save"), exist_ok=True)
 
         cuda_available = torch.cuda.is_available()
         device = torch.device("cuda" if cuda_available else "cpu")
@@ -90,6 +94,7 @@ class ceVAE:
             "data_dir": data_dir,
             "dataset": dataset,
             "log_dir": log_dir,
+            "work_dir": self.work_dir,
             "load_path": load_path,
             "cuda_available": cuda_available,
             "lr": lr
@@ -458,7 +463,7 @@ def main(
         if dataset == "CuratedImageParameterDataset":
             train_loader = get_dataset(
                 base_dir=data_dir,
-                num_processes=num_data_loader_workers,
+                num_workers=num_data_loader_workers,
                 pin_memory=False,
                 batch_size=batch_size,
                 mode="train",
@@ -466,7 +471,7 @@ def main(
             )
             val_loader = get_dataset(
                 base_dir=data_dir,
-                num_processes=num_data_loader_workers,
+                num_workers=num_data_loader_workers,
                 pin_memory=False,
                 batch_size=batch_size,
                 mode="val",
@@ -476,7 +481,7 @@ def main(
             # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
             train_loader = get_sdo_ml_v1_dataset(
                 base_dir=data_dir,
-                num_processes=num_data_loader_workers,
+                num_workers=num_data_loader_workers,
                 pin_memory=False,
                 batch_size=batch_size,
                 mode="train",
@@ -484,7 +489,7 @@ def main(
             )
             val_loader = get_sdo_ml_v1_dataset(
                 base_dir=data_dir,
-                num_processes=num_data_loader_workers,
+                num_workers=num_data_loader_workers,
                 pin_memory=False,
                 batch_size=batch_size,
                 mode="val",
