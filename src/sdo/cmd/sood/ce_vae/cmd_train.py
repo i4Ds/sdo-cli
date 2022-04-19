@@ -24,6 +24,7 @@ import click
 @click.option(
     "--dataset", type=click.Choice(["CuratedImageParameterDataset", "SDOMLDatasetV1"], case_sensitive=False), required=False, default="CuratedImageParameterDataset"
 )
+@click.option("--num-data-loader-workers", type=int, default=0)
 @pass_environment
 def train(ctx,
           target_size,
@@ -40,7 +41,8 @@ def train(ctx,
           load_path,
           log_dir,
           data_dir,
-          dataset):
+          dataset,
+          num_data_loader_workers):
 
     main(run="train",
          target_size=target_size,
@@ -56,4 +58,5 @@ def train(ctx,
          load_path=load_path,
          log_dir=log_dir,
          data_dir=data_dir,
-         dataset=dataset)
+         dataset=dataset,
+         num_data_loader_workers=num_data_loader_workers)
