@@ -1,3 +1,4 @@
+import imp
 import random
 import warnings
 
@@ -5,6 +6,7 @@ import numpy as np
 import torch
 from torchvision.utils import save_image as tv_save_image
 import os
+from pathlib import Path
 
 
 def get_vanilla_image_gradient(model, inpt, err_fn, abs=False):
@@ -204,7 +206,7 @@ def save_image_grid(tensor, name, save_dir, n_iter=None, prefix=False, iter_form
     elif not name.endswith(".png"):
         name += ".png"
 
-    img_file = os.path.join(save_dir, name)
+    img_file = save_dir / Path(name)
 
     if image_args is None:
         image_args = {}
@@ -212,6 +214,7 @@ def save_image_grid(tensor, name, save_dir, n_iter=None, prefix=False, iter_form
     os.makedirs(os.path.dirname(img_file), exist_ok=True)
 
     tv_save_image(tensor, img_file, **image_args)
+    return str(img_file)
 
 
 def name_and_iter_to_filename(name, n_iter, ending, iter_format="{:05d}", prefix=False):
