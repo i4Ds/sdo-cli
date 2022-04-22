@@ -119,12 +119,12 @@ class ceVAE(pl.LightningModule):
                 sample_images.append(wandb.Image(tensor_to_image(
                     x, normalize=False), caption="Input-VAE"))
                 sample_images.append(wandb.Image(tensor_to_image(
-                    x_rec_vae, normalize=True), caption="Output-VAE"))
+                    x_rec_vae, normalize=False), caption="Output-VAE"))
             if self.ce_factor > 0:
                 sample_images.append(wandb.Image(tensor_to_image(
                     inpt_noisy, normalize=False), caption="Input-CE"))
                 sample_images.append(wandb.Image(tensor_to_image(
-                    x_rec_ce, normalize=True), caption="Output-CE"))
+                    x_rec_ce, normalize=False), caption="Output-CE"))
 
             self.logger.experiment.log(
                 {"train_images": sample_images})
@@ -147,10 +147,12 @@ class ceVAE(pl.LightningModule):
         self.log('val_loss_kl', kl_loss)
         self.log('val_loss_rec', rec_loss)
 
-        self.logger.experiment.log(
-            {"val_images": [wandb.Image(tensor_to_image(
-                x, normalize=False), caption="Input"), wandb.Image(tensor_to_image(
-                    x_rec, normalize=True), caption="Output")]})
+        # log image for every 10th validation batch
+        if batch_idx % 10 == 0:
+            self.logger.experiment.log(
+                {"val_images": [wandb.Image(tensor_to_image(
+                    x, normalize=False), caption="Input"), wandb.Image(tensor_to_image(
+                        x_rec, normalize=False), caption="Output")]})
         return loss
 
     def test_step(self, batch, batch_idx):
