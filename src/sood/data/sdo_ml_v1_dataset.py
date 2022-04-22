@@ -1,9 +1,10 @@
 import torch
 import numpy as np
 from pathlib import Path
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.transforms import Compose, Resize, Normalize, Lambda
 import math
+import pytorch_lightning as pl
 
 
 class SDONumpyDataset(Dataset):
@@ -184,3 +185,87 @@ def get_sdo_ml_v1_dataset(
         drop_last=drop_last,
     )
     return data_loader
+
+
+class SDOMLv1DataModule(pl.LightningDataModule):
+    def __init__(self, base_dir: Path,
+                 batch_size: int = 16,
+                 n_items: int = None,
+                 pin_memory: bool = False,
+                 num_workers: int = 0,
+                 drop_last: bool = False,
+                 target_size: int = 512,
+                 file_pattern: str = "*.npz",
+                 channel: str = "171",
+                 shuffle: bool = False):
+        """
+        Creates a LightningDataModule for the SDO Ml v1 dataset
+
+        Args:
+            base_dir ([str]): [Directory in which the npz files are.]
+            batch_size (int, optional): [See pytorch DataLoader]. Defaults to 16.
+            n_items ([int], optional): [Number of items in the dataset, by default number of files in the loaded set 
+                                            but can be smaller (uses subset) or larger (uses file multiple times)]. Defaults to None.
+            pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
+            num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
+            drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
+            target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 512.
+            file_pattern (str, optional): [File pattern of files to load from the base_dir]. Defaults to "*.npz".
+            shuffle (bool, optional): [See pytorch DataLoader]. Defaults to False.
+        """
+        super().__init__()
+
+        transforms = get_default_transforms(
+            target_size=target_size, channel=channel)
+
+        dataset = SDONumpyDataset(
+            base_dir=base_dir / Path("train"),
+            n_items=n_items,
+            file_pattern=file_pattern,
+            transforms=transforms,
+        )
+
+        self.dataset_test = SDONumpyDataset(
+            base_dir=base_dir / Path("test"),
+            n_items=n_items,
+            file_pattern=file_pattern,
+            transforms=transforms,
+        )
+
+        # TODO implement temporal split
+        num_samples = len(dataset)
+        self.dataset_train, self.dataset_val = random_split(
+            dataset, [int(num_samples*0.8), int(num_samples * 0.2)])
+        self.batch_size = batch_size
+        self.pin_memory = pin_memory
+        self.num_workers = num_workers
+        self.drop_last = drop_last
+        self.shuffle = shuffle
+
+    def train_dataloader(self):
+        return DataLoader(self.dataset_train, batch_size=self.batch_size,
+                          shuffle=self.shuffle,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          drop_last=self.drop_last,)
+
+    def val_dataloader(self):
+        return DataLoader(self.dataset_val, batch_size=self.batch_size,
+                          shuffle=self.shuffle,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          drop_last=self.drop_last,)
+
+    def test_dataloader(self):
+        return DataLoader(self.dataset_test, batch_size=self.batch_size,
+                          shuffle=self.shuffle,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          drop_last=self.drop_last,)
+
+    def predict_dataloader(self):
+        return DataLoader(self.dataset_test, batch_size=self.batch_size,
+                          shuffle=self.shuffle,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory,
+                          drop_last=self.drop_last,)
