@@ -16,7 +16,7 @@ from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
 from pytorch_lightning.loggers import WandbLogger
 from sood.data.image_dataset import get_dataset
 from sood.data.path_dataset import ImageFolderWithPaths
-from sood.data.sdo_ml_v1_dataset import get_sdo_ml_v1_dataset
+from sood.data.sdo_ml_v1_dataset import SDOMLv1DataModule
 from sood.models.aes import VAE
 from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
 from sood.util.utils import (get_smooth_image_gradient, save_image_grid,
@@ -136,9 +136,7 @@ class ceVAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, _ = batch
-
         x_rec, z_dist = self.model(x, sample=False)
-
         kl_loss = 0
         if self.beta > 0:
             kl_loss = self.kl_loss_fn(z_dist) * self.beta
@@ -156,6 +154,7 @@ class ceVAE(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        print("test step not defined")
         pass
 
     def forward(self, x):
@@ -379,7 +378,7 @@ def main(
 
     input_shape = (batch_size, 1, target_size, target_size)
 
-    if load_path != None:
+    if load_path is not None:
         cevae_algo = ceVAE.load_from_checkpoint(
             load_path, mode=mode)
     else:
@@ -396,6 +395,9 @@ def main(
             print_every_iter=print_every_iter
         )
 
+    data_module = None
+    train_loader = None
+    val_loader = None
     if run == "train":
         if dataset == "CuratedImageParameterDataset":
             train_loader = get_dataset(
@@ -416,22 +418,12 @@ def main(
             )
         elif dataset == "SDOMLDatasetV1":
             # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
-            train_loader = get_sdo_ml_v1_dataset(
-                base_dir=data_dir,
-                num_workers=num_data_loader_workers,
-                pin_memory=False,
-                batch_size=batch_size,
-                mode="train",
-                target_size=input_shape[2],
-            )
-            val_loader = get_sdo_ml_v1_dataset(
-                base_dir=data_dir,
-                num_workers=num_data_loader_workers,
-                pin_memory=False,
-                batch_size=batch_size,
-                mode="val",
-                target_size=input_shape[2],
-            )
+            data_module = SDOMLv1DataModule(base_dir=data_dir,
+                                            num_workers=num_data_loader_workers,
+                                            pin_memory=False,
+                                            batch_size=batch_size,
+                                            channel="171",
+                                            target_size=input_shape[2])
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=n_epochs,
@@ -444,7 +436,7 @@ def main(
                                  ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")])
         wandb_logger.watch(cevae_algo)
         trainer.fit(model=cevae_algo, train_dataloaders=train_loader,
-                    val_dataloaders=val_loader)
+                    val_dataloaders=val_loader, datamodule=data_module)
 
     if run == "generate":
         cevae_algo.generate()
