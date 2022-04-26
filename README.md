@@ -1,17 +1,19 @@
 # sdo-cli
 
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/sdo-cli)](https://pypi.org/project/sdo-cli/)
+[![PyPI Status](https://badge.fury.io/py/sdo-cli.svg)](https://badge.fury.io/py/sdo-cli)
+
 A practitioner's utility for working with SDO data.
 
-## Setup
-
-Setup Virtual Environment and install `sdo-cli`.
+## Installation 
 
 ```
-make setup
-make install
+pip install -U sdo-cli
 ```
 
 ## Usage
+
+### cli
 
 A small helper toolkit for downloading and working with SDO data complementing [sunpy](https://sunpy.org/) by giving illustrative examples how to solve tasks. The data is loaded from the Image Parameter dataset which is the result of [1].
 
@@ -20,17 +22,20 @@ A small helper toolkit for downloading and working with SDO data complementing [
 How to use `sdo-cli`:
 
 ```
-Usage: sdo-cli data [OPTIONS] COMMAND [ARGS]...
+Usage: sdo-cli [OPTIONS] COMMAND [ARGS]...
+
+  CLI to manipulate and model SDO data.
 
 Options:
-  --help  Show this message and exit.
+  --home DIRECTORY  Changes the folder to operate on.
+  -v, --verbose     Enables verbose mode.
+  --help            Show this message and exit.
 
 Commands:
-  download  Loads a set of SDO images between start and end from the Georgia
-            State University Data Lab API
-
-  patch     Generates patches from a set of images
-  resize    Generates a set of resized images
+  data
+  events
+  goes
+  sood                                         
 ```
 
 **Examples:**
@@ -60,17 +65,28 @@ docker-compose up
 sdo-cli events get --start="2012-01-01T00:00:00" --end="2012-01-02T23:59:59" --event-type="AR"
 ```
 
-## SOoD Anomaly Detection
+### SOoD Anomaly Detection
 
-Under `src/sood` a Solar Out-of-Distribution model based on a context-encoding variational autoencoder by Zimmerer et al. [2] is implemented. The model makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error and allows anomaly detection on both a sample as well as a pixel level.
+The `sood` command implements a Solar Out-of-Distribution model based on the Context-encoding Variational Autoencoder (ceVAE) by Zimmerer et al. [2]. The model makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error and allows anomaly detection on both a sample as well as a pixel level.
 
-A full Anomaly Detection pipeline can be examined in the example notebook `notebooks/e2ePipeline.ipynb`. For this start jupyter:
+A full Anomaly Detection pipeline can be examined in the example notebook `notebooks/ce-vae__e2e-pipeline.ipynb`. For this start jupyter:
 
 ```
 make notebook
 ```
 
-## Troubleshooting
+## Local Development
+
+### Setup
+
+Setup Virtual Environment and install `sdo-cli`.
+
+```
+make setup
+make install
+```
+
+### Troubleshooting
 
 Tensorflow only works with Python versions < 3.9.
 
@@ -87,6 +103,3 @@ Also refer to this [link](https://www.chrisjmendez.com/2017/08/03/installing-mul
 
 - [1] Ahmadzadeh, Azim, Dustin J. Kempton, and Rafal A. Angryk. "A Curated Image Parameter Data Set from the Solar Dynamics Observatory Mission." The Astrophysical Journal Supplement Series 243.1 (2019): 18.
 - [2] Zimmerer, David, et al. "Context-encoding variational autoencoder for unsupervised anomaly detection." arXiv preprint arXiv:1812.05941 (2018).
-
-
-http://dmlab.cs.gsu.edu/dmlabapi/isd_temporal_queries.html
