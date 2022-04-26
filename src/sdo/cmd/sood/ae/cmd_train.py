@@ -1,5 +1,5 @@
 from sdo.cli import pass_environment
-from sood.algorithms.ae_2d import main
+from sdo.sood.algorithms.ae_2d import main
 
 import click
 

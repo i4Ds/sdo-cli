@@ -24,3 +24,5 @@ pip install -U jupyter_contrib_nbextensions
 jupyter contrib nbextension install --sys-prefix
 jupyter nbextension enable code_prettify/autopep8
 ipython kernel install --user --name $project_name --display-name "Python ($project_name)"
+
+python3 -m pip install --upgrade twine

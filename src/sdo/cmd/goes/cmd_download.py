@@ -1,4 +1,3 @@
-from tenacity import before_log, stop_after_attempt, wait_fixed, retry
 import logging
 from pathlib import Path
 
@@ -8,7 +7,6 @@ from sdo.cli import pass_environment
 from sunpy import timeseries as ts
 from sunpy.net import Fido
 from sunpy.net import attrs as a
-from sunpy.util.datatype_factory_base import NoMatchError
 
 date_format = '%Y-%m-%d'
 

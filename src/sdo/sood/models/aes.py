@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.distributions as dist
 
-from sood.models.nets import BasicEncoder, BasicGenerator
+from sdo.sood.models.nets import BasicEncoder, BasicGenerator
 
 
 class VAE(torch.nn.Module):
