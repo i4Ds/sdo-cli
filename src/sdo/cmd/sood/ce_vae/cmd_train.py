@@ -1,5 +1,5 @@
 from sdo.cli import pass_environment
-from sood.algorithms.ce_vae import main
+from sdo.sood.algorithms.ce_vae import main
 
 import click
 

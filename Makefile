@@ -4,8 +4,22 @@ setup: ## Sets up the dev environment
 install:
 	( \
 	  source .venv/bin/activate; \
- 	  cd src; \
 	  pip install --editable .; \
+	)
+
+package:
+	( \
+	  source .venv/bin/activate; \
+	  rm -rf ./dist; \
+	  python setup.py sdist bdist_wheel; \
+	)
+
+
+test-publish:
+	( \
+	  source .venv/bin/activate; \
+	  python -m twine upload --repository testpypi dist/*; \
+	  python3 -m pip install --extra-index-url https://test.pypi.org/simple sdo-cli==0.0.3; \ 
 	)
 
 dev: 

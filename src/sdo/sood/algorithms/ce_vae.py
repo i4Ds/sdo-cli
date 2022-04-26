@@ -14,13 +14,13 @@ import wandb
 from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
                                          ModelSummary)
 from pytorch_lightning.loggers import WandbLogger
-from sood.data.image_dataset import get_dataset
-from sood.data.path_dataset import ImageFolderWithPaths
-from sood.data.sdo_ml_v1_dataset import SDOMLv1DataModule
-from sood.models.aes import VAE
-from sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
-from sood.util.utils import (get_smooth_image_gradient, save_image_grid,
-                             tensor_to_image)
+from sdo.sood.data.image_dataset import get_dataset
+from sdo.sood.data.path_dataset import ImageFolderWithPaths
+from sdo.sood.data.sdo_ml_v1_dataset import SDOMLv1DataModule
+from sdo.sood.models.aes import VAE
+from sdo.sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
+from sdo.sood.util.utils import (get_smooth_image_gradient, save_image_grid,
+                                 tensor_to_image)
 from torch import optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
@@ -58,13 +58,19 @@ class ceVAE(pl.LightningModule):
         self.theta = 1
 
         self.model = VAE(
-            input_size=input_shape[1:], z_dim=z_dim, fmap_sizes=model_feature_map_sizes).to(self.device)
+            input_size=input_shape[1:], z_dim=z_dim, fmap_sizes=model_feature_map_sizes)
 
         self.save_hyperparameters()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         return optimizer
+
+    def pixel_mode(self):
+        self.mode = "pixel"
+
+    def sample_mode(self):
+        self.mode = "sample"
 
     def training_step(self, batch, batch_idx):
         x, _ = batch  # only inputs no labels
@@ -208,7 +214,7 @@ class ceVAE(pl.LightningModule):
 
         return np.max(slice_scores)
 
-    def score_pixels(self, data, index, file_name):
+    def score_pixels(self, data):
         orig_shape = data.shape
         to_transforms = torch.nn.Upsample(
             (self.input_shape[2], self.input_shape[3]), mode="bilinear")
@@ -226,7 +232,6 @@ class ceVAE(pl.LightningModule):
             x_rec, z_dist = self.model(inpt, sample=False)
 
             if self.score_mode == "combi":
-
                 rec = torch.pow((x_rec - inpt), 2).detach().cpu()
                 rec = torch.mean(rec, dim=1, keepdim=True)
 
@@ -272,21 +277,21 @@ class ceVAE(pl.LightningModule):
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8)
 
-            save_image_grid(inpt, name="Input", save_dir=self.work_dir, image_args={
-                "normalize": True}, n_iter=index)
-            save_image_grid(x_rec, name="Output", save_dir=self.work_dir, image_args={
-                "normalize": True}, n_iter=index)
-            save_image_grid(pixel_scores, name="Scores", save_dir=self.work_dir, image_args={
-                "normalize": True}, n_iter=index)
+            # save_image_grid(inpt, name="Input", save_dir=self.work_dir, image_args={
+            #     "normalize": True}, n_iter=index)
+            # save_image_grid(x_rec, name="Output", save_dir=self.work_dir, image_args={
+            #     "normalize": True}, n_iter=index)
+            # save_image_grid(pixel_scores, name="Scores", save_dir=self.work_dir, image_args={
+            #     "normalize": True}, n_iter=index)
 
             target_tensor[i * self.batch_size: (
                 i + 1) * self.batch_size] = pixel_scores.detach().cpu()[:, 0, :]
 
         target_tensor = from_transforms(target_tensor[None])[0]
         # TODO rather normalize over the whole dataset rather than a single image
-        save_image(target_tensor, file_name, normalize=True)
+        #save_image(target_tensor, file_name, normalize=True)
 
-        return target_tensor.detach().numpy()
+        return target_tensor
 
     @staticmethod
     def kl_loss_fn(z_post, sum_samples=True, correct=False):
@@ -441,9 +446,11 @@ def main(
                     val_dataloaders=val_loader, datamodule=data_module)
 
     if run == "generate":
+        cevae_algo.eval()
         cevae_algo.generate()
 
     if run == "predict":
+        cevae_algo.eval()
         if pred_dir is None and work_dir is not None:
             pred_dir = os.path.join(work_dir, "predictions")
             os.makedirs(pred_dir, exist_ok=True)

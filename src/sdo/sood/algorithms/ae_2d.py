@@ -7,10 +7,10 @@ import numpy as np
 import torch
 from torch import optim
 from tqdm import tqdm
-from sood.data.image_dataset import get_dataset
-from sood.data.path_dataset import ImageFolderWithPaths
+from sdo.sood.data.image_dataset import get_dataset
+from sdo.sood.data.path_dataset import ImageFolderWithPaths
 
-from sood.models.aes import AE
+from sdo.sood.models.aes import AE
 from torchvision.utils import save_image
 
 
