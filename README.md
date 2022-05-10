@@ -86,6 +86,14 @@ make setup
 make install
 ```
 
+### Publishing
+
+Add your pypi credentials to `~/.pypirc`, increase the version number in `setup.py` and run:
+
+```
+make publish
+```
+
 ### Troubleshooting
 
 Tensorflow only works with Python versions < 3.9.
