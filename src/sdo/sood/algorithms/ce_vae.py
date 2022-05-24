@@ -435,7 +435,7 @@ def main(
                                                 channel="171",
                                                 target_size=input_shape[2])
             elif dataset == "SDOMLDatasetV2":
-                data_module = SDOMLv2DataModule(base_dir=data_dir,
+                data_module = SDOMLv2DataModule(storage_root=data_dir,
                                                 storage_driver="fs",
                                                 num_workers=num_data_loader_workers,
                                                 pin_memory=False,
