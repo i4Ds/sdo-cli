@@ -22,7 +22,7 @@ import click
     "--score-mode", type=click.Choice(["rec", "grad", "combi"], case_sensitive=False), required=False, default="rec"
 )
 @click.option(
-    "--dataset", type=click.Choice(["CuratedImageParameterDataset", "SDOMLDatasetV1"], case_sensitive=False), required=False, default="CuratedImageParameterDataset"
+    "--dataset", type=click.Choice(["CuratedImageParameterDataset", "SDOMLDatasetV1", "SDOMLDatasetV2"], case_sensitive=False), required=False, default="CuratedImageParameterDataset"
 )
 @click.option("--num-data-loader-workers", type=int, default=0)
 @pass_environment
