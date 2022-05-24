@@ -191,10 +191,11 @@ def get_default_transforms(target_size=128, channel="171"):
 
     transforms = Compose(
         [Resize((target_size, target_size)),
-         #  Lambda(lambda_transform),
-         #  Normalize(mean=[mean], std=[std]),
-         #  # required to remove strange distribution of pixels (everything too bright)
-         #  Normalize(mean=(0.5), std=(0.5))
+         # TODO find out if these transforms make sense
+         Lambda(lambda_transform),
+         Normalize(mean=[mean], std=[std]),
+         # required to remove strange distribution of pixels (everything too bright)
+         Normalize(mean=(0.5), std=(0.5))
          ]
     )
     return transforms

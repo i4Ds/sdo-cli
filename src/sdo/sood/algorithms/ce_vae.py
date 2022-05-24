@@ -453,6 +453,8 @@ def main(
                                  EarlyStopping(
                                      monitor="val_loss", mode="min"),
                                  ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")])
+        # TODO log_graph does not work when running on multiple GPUs
+        # # AttributeError: Can't pickle local object 'TorchGraph.create_forward_hook.<locals>.after_forward_hook'
         wandb_logger.watch(cevae_algo, log_graph=False)
         trainer.fit(model=cevae_algo, train_dataloaders=train_loader,
                     val_dataloaders=val_loader, datamodule=data_module)
