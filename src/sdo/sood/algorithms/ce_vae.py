@@ -453,7 +453,7 @@ def main(
                                  EarlyStopping(
                                      monitor="val_loss", mode="min"),
                                  ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")])
-        wandb_logger.watch(cevae_algo)
+        wandb_logger.watch(cevae_algo, log_graph=False)
         trainer.fit(model=cevae_algo, train_dataloaders=train_loader,
                     val_dataloaders=val_loader, datamodule=data_module)
 
