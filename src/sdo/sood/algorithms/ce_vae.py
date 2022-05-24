@@ -440,7 +440,7 @@ def main(
                                                 num_workers=num_data_loader_workers,
                                                 pin_memory=False,
                                                 batch_size=batch_size,
-                                                channel="171",
+                                                channel="171A",
                                                 target_size=input_shape[2])
 
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
