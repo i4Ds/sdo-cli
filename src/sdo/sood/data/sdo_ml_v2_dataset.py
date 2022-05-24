@@ -4,7 +4,6 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision.transforms import Compose, Resize, Normalize, Lambda
 import math
 import pytorch_lightning as pl
-import gcsfs
 import zarr
 import pandas as pd
 import dask.array as da
@@ -37,10 +36,12 @@ class SDOMLv2NumpyDataset(Dataset):
         # TODO only load required channels
 
         if storage_driver == "gcs":
+            import gcsfs
+
             gcs = gcsfs.GCSFileSystem(access="read_only")
             store = gcsfs.GCSMap(storage_root, gcs=gcs, check=False)
         elif storage_driver == "fs":
-            store = zarr.DirectoryStore('data/example.zarr')
+            store = zarr.DirectoryStore(storage_root)
         else:
             raise f"storage driver {storage_driver} not supported"
 
