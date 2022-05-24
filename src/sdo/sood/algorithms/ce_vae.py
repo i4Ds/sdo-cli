@@ -17,6 +17,7 @@ from pytorch_lightning.loggers import WandbLogger
 from sdo.sood.data.image_dataset import get_dataset
 from sdo.sood.data.path_dataset import ImageFolderWithPaths
 from sdo.sood.data.sdo_ml_v1_dataset import SDOMLv1DataModule
+from sdo.sood.data.sdo_ml_v2_dataset import SDOMLv2DataModule
 from sdo.sood.models.aes import VAE
 from sdo.sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
 from sdo.sood.util.utils import (get_smooth_image_gradient, save_image_grid,
@@ -423,14 +424,25 @@ def main(
                 mode="val",
                 target_size=input_shape[2],
             )
-        elif dataset == "SDOMLDatasetV1":
-            # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
-            data_module = SDOMLv1DataModule(base_dir=data_dir,
-                                            num_workers=num_data_loader_workers,
-                                            pin_memory=False,
-                                            batch_size=batch_size,
-                                            channel="171",
-                                            target_size=input_shape[2])
+        elif dataset == "SDOMLDatasetV1" or dataset == "SDOMLDatasetV2":
+
+            if dataset == "SDOMLDatasetV1":
+                # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
+                data_module = SDOMLv1DataModule(base_dir=data_dir,
+                                                num_workers=num_data_loader_workers,
+                                                pin_memory=False,
+                                                batch_size=batch_size,
+                                                channel="171",
+                                                target_size=input_shape[2])
+            elif dataset == "SDOMLDatasetV2":
+                data_module = SDOMLv2DataModule(base_dir=data_dir,
+                                                storage_driver="fs",
+                                                num_workers=num_data_loader_workers,
+                                                pin_memory=False,
+                                                batch_size=batch_size,
+                                                channel="171",
+                                                target_size=input_shape[2])
+
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=n_epochs,

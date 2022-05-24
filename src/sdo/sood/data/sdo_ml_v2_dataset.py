@@ -14,15 +14,15 @@ hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
 class SDOMLv2NumpyDataset(Dataset):
     def __init__(
             self,
-            storage_root="fdl-sdoml-v2/sdomlv2_small.zarr/",
-            storage_driver="gcs",
-            n_items=None,
-            year="2010",
-            channel="171A",
-            start="2010-08-28 00:00:00",
-            end="2010-08-28 23:59:59",
-            freq="6T",
-            transforms=None):
+            storage_root,
+            storage_driver,
+            n_items,
+            year,
+            channel,
+            start,
+            end,
+            freq,
+            transforms):
         """Dataset which loads Numpy npz files
         Args:
             base_dir ([str]): [Directory in which the npz files are.]
@@ -212,9 +212,9 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  target_size: int = 256,
                  channel: str = "171A",
                  year="2010",
-                 start="2010-08-28 00:00:00",
-                 end="2010-08-28 23:59:59",
-                 freq="6T",
+                 start=None,
+                 end=None,
+                 freq=None,
                  shuffle: bool = False):
         """
         Creates a LightningDataModule for the SDO Ml v2 dataset
@@ -235,10 +235,10 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
             target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 256.
             channel (str, optional): [Channel name that should be used]. Defaults to "171A".
-            year (str, optional): [Allows to prefilter the dataset by year, useful for train/test splits]. Defaults to "2010".
-            start (str, optional): [Allows to restrict the dataset temporally, only works in combination with freq]. Defaults to "2010-08-28 00:00:00".
-            end (str, optional): [Allows to restrict the dataset temporally, only works in combination with freq]. Defaults to "2010-08-28 23:59:59".
-            freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel]. Defaults to "6T".
+            year (str, optional): [Allows to prefilter the dataset by year, useful for train/test splits]. Defaults to 2010.
+            start (str, optional): [Allows to restrict the dataset temporally, only works in combination with freq]. Defaults to None.
+            end (str, optional): [Allows to restrict the dataset temporally, only works in combination with freq]. Defaults to None.
+            freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel]. Defaults to None.
             shuffle (bool, optional): [See pytorch DataLoader]. Defaults to False.
         """
         super().__init__()
