@@ -9,11 +9,14 @@ import zarr
 import pandas as pd
 import dask.array as da
 
+hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
+
 
 class SDOMLv2NumpyDataset(Dataset):
     def __init__(
             self,
             storage_root="fdl-sdoml-v2/sdomlv2_small.zarr/",
+            storage_driver="gcs",
             n_items=None,
             year="2010",
             channel="171A",
@@ -32,8 +35,15 @@ class SDOMLv2NumpyDataset(Dataset):
             transforms ([type], optional): [Transformations to do after loading the data -> pytorch data transforms]. Defaults to None
         """
         # TODO only load required channels
-        gcs = gcsfs.GCSFileSystem(access="read_only")
-        store = gcsfs.GCSMap(storage_root, gcs=gcs, check=False)
+
+        if storage_driver == "gcs":
+            gcs = gcsfs.GCSFileSystem(access="read_only")
+            store = gcsfs.GCSMap(storage_root, gcs=gcs, check=False)
+        elif storage_driver == "fs":
+            store = zarr.DirectoryStore('data/example.zarr')
+        else:
+            raise f"storage driver {storage_driver} not supported"
+
         root = zarr.group(store)
         print("discovered the following zarr directory structure")
         print(root.tree())
@@ -54,7 +64,12 @@ class SDOMLv2NumpyDataset(Dataset):
             df_time = pd.DataFrame(t_obs, index=np.arange(
                 np.shape(t_obs)[0]), columns=["Time"])
             # TODO for HMI the date format is different 2010.05.01_00:12:04_TAI
-            df_time["Time"] = pd.to_datetime(df_time["Time"])
+            format = None
+            if channel in ['Bx', 'By', 'Bz']:
+                format = hmi_date_format
+            df_time["Time"] = pd.to_datetime(
+                df_time["Time"], format=format, utc=True)
+
             # select times at a frequency of freq (e.g. 12T)
             selected_times = pd.date_range(
                 start=start, end=end, freq=freq, tz="UTC"
@@ -93,6 +108,10 @@ class SDOMLv2NumpyDataset(Dataset):
 
         attrs = dict([(key, self.attrs[key][idx])
                      for key in self.attrs.keys()])
+
+        # Pytorch does not support NoneType items
+        attrs = {k: v for k, v in attrs.items() if v is not None}
+
         torch_arr = torch.from_numpy(np.array(image))
         # convert to 1 x H x W, to be in compatible torchvision format
         torch_arr = torch_arr.unsqueeze(dim=0)
@@ -183,6 +202,7 @@ def get_default_transforms(target_size=128, channel="171"):
 class SDOMLv2DataModule(pl.LightningDataModule):
     def __init__(self,
                  storage_root: str = "fdl-sdoml-v2/sdomlv2_small.zarr/",
+                 storage_driver: str = "gcs",
                  batch_size: int = 16,
                  n_items: int = None,
                  pin_memory: bool = False,
@@ -227,6 +247,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
 
         dataset = SDOMLv2NumpyDataset(
             storage_root=storage_root,
+            storage_driver=storage_driver,
             year=year,
             start=start,
             end=end,
@@ -238,6 +259,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
 
         self.dataset_test = SDOMLv2NumpyDataset(
             storage_root=storage_root,
+            storage_driver=storage_driver,
             year=year,
             start=start,
             end=end,
