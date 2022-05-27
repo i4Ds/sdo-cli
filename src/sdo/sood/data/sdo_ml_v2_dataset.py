@@ -417,8 +417,3 @@ def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temp
     print(
         f"splitting Dataset into two subsets. Train size {len(train_indices)}, validation size {len(val_indices)}")
     return Subset(dataset, train_indices), Subset(dataset, val_indices)
-
-
-if __name__ == '__main__':
-    loader = SDOMLv2DataModule("fdl-sdoml-v2/sdomlv2_small.zarr/", channel="193A",
-                               train_start="2010-08-28 00:00:00", train_end="2010-08-28 23:59:59").train_dataloader()
