@@ -245,6 +245,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  drop_last: bool = False,
+                 prefetch_factor: int = 8,
                  target_size: int = 256,
                  channel: str = "171A",
                  year: str = "2010",
@@ -334,6 +335,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.drop_last = drop_last
         self.shuffle = shuffle
+        self.prefetch_factor = prefetch_factor
 
     def train_dataloader(self):
         return DataLoader(self.dataset_train, batch_size=self.batch_size,
@@ -341,6 +343,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_train))
 
     def val_dataloader(self):
@@ -349,6 +352,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_val))
 
     def test_dataloader(self):
@@ -357,6 +361,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_test))
 
     def predict_dataloader(self):
@@ -365,6 +370,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_test))
 
 
