@@ -1,4 +1,3 @@
-from urllib.parse import non_hierarchical
 from torch import default_generator, randperm, Generator
 from typing import (
     Tuple,
@@ -14,6 +13,8 @@ import pytorch_lightning as pl
 import zarr
 import pandas as pd
 import dask.array as da
+
+from sdo.sood.data.chunk_sampler import SequenceInChunkSampler
 
 hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
 hmi_channels = ['Bx', 'By', 'Bz']
@@ -339,28 +340,32 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
-                          drop_last=self.drop_last,)
+                          drop_last=self.drop_last,
+                          sampler=SequenceInChunkSampler(self.dataset_train))
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
-                          drop_last=self.drop_last,)
+                          drop_last=self.drop_last,
+                          sampler=SequenceInChunkSampler(self.dataset_val))
 
     def test_dataloader(self):
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
-                          drop_last=self.drop_last,)
+                          drop_last=self.drop_last,
+                          sampler=SequenceInChunkSampler(self.dataset_test))
 
     def predict_dataloader(self):
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
-                          drop_last=self.drop_last,)
+                          drop_last=self.drop_last,
+                          sampler=SequenceInChunkSampler(self.dataset_test))
 
 
 def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temporal_chunk_size="14d",
