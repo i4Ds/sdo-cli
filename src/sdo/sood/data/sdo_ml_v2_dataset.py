@@ -1,3 +1,4 @@
+from urllib.parse import non_hierarchical
 from torch import default_generator, randperm, Generator
 from typing import (
     Tuple,
@@ -30,17 +31,8 @@ class SDOMLv2NumpyDataset(Dataset):
             end,
             freq,
             transforms):
-        """Dataset which loads Numpy npz files
-        Args:
-            base_dir ([str]): [Directory in which the npz files are.]
-            mode (str, optional): [train or val, TODO implement val split]. Defaults to "train".
-            n_items ([type], optional): [Number of items in on iteration, by default number of files in the loaded set 
-                                        but can be smaller (uses subset) or larger (uses file multiple times)]. Defaults to None.
-            file_pattern (str, optional): [File pattern of files to load from the base_dir]. Defaults to "*.npz".
-            data_key (str, optional): [Data key used to load data from the npz array]. Defaults to 'x'.
-            transforms ([type], optional): [Transformations to do after loading the data -> pytorch data transforms]. Defaults to None
+        """Dataset which loads the SDO Ml v2 dataset from a zarr directory.
         """
-        # TODO only load required channels
 
         if storage_driver == "gcs":
             import gcsfs
@@ -68,10 +60,13 @@ class SDOMLv2NumpyDataset(Dataset):
 
         if freq:
             # temporal downsampling
+            print(
+                f"applying temporal downsampling to freq {freq} between {start} and {end}")
+
             t_obs = np.array(data.attrs["T_OBS"])
             df_time = pd.DataFrame(t_obs, index=np.arange(
                 np.shape(t_obs)[0]), columns=["Time"])
-            # TODO for HMI the date format is different 2010.05.01_00:12:04_TAI
+            # NOTE for HMI the date format is different 2010.05.01_00:12:04_TAI
             format = None
             if channel in hmi_channels:
                 format = hmi_date_format
@@ -89,7 +84,35 @@ class SDOMLv2NumpyDataset(Dataset):
             all_images = da.from_array(data)[time_index, :, :]
             attrs = {keys: [values[idx] for idx in time_index]
                      for keys, values in data.attrs.items()}
+        elif start != None or end != None:
+            # filter dates
+            print(
+                f"filtering data between {start} and {end}")
+
+            t_obs = np.array(data.attrs["T_OBS"])
+            df_time = pd.DataFrame(t_obs, index=np.arange(
+                np.shape(t_obs)[0]), columns=["Time"])
+            # NOTE for HMI the date format is different 2010.05.01_00:12:04_TAI
+            format = None
+            if channel in hmi_channels:
+                format = hmi_date_format
+            df_time["Time"] = pd.to_datetime(
+                df_time["Time"], format=format, utc=True)
+
+            if start != None and end != None:
+                filter = (df_time['Time'] >= start) & (
+                    df_time['Time'] <= end)
+            elif start != None:
+                filter = (df_time['Time'] >= start)
+            else:
+                filter = (df_time['Time'] <= end)
+
+            time_index = df_time['Time'].index[filter].tolist()
+            all_images = da.from_array(data)[time_index, :, :]
+            attrs = {keys: [values[idx] for idx in time_index]
+                     for keys, values in data.attrs.items()}
         else:
+            # all data should be used
             attrs = data.attrs
             all_images = da.from_array(data)
 
@@ -99,7 +122,8 @@ class SDOMLv2NumpyDataset(Dataset):
         self.channel = channel
 
         self.data_len = len(self.all_images)
-        print(f"found {len(self.all_images)} images")
+        print(
+            f"found {len(self.all_images)} images")
         if n_items is None:
             self.n_items = self.data_len
         else:
@@ -148,6 +172,8 @@ CHANNEL_PREPROCESS = {
     "Bx": {"min": -250, "max": 250, "scaling": None},
     "By": {"min": -250, "max": 250, "scaling": None},
     "Bz": {"min": -250, "max": 250, "scaling": None},
+
+
 }
 
 
@@ -220,9 +246,11 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  drop_last: bool = False,
                  target_size: int = 256,
                  channel: str = "171A",
-                 year="2010",
-                 start=None,
-                 end=None,
+                 year: str = "2010",
+                 train_start=None,
+                 train_end=None,
+                 test_start=None,
+                 test_end=None,
                  freq=None,
                  shuffle: bool = False,
                  train_val_split_strategy: str = "temporal",
@@ -234,25 +262,31 @@ class SDOMLv2DataModule(pl.LightningDataModule):
 
         The header information can be retrieved as the second argument when enumerating the loader
 
-        >>> loader = SDOMLv2DataModule(channel="171A").train_dataloader()
+        >>> loader = SDOMLv2DataModule(storage_root="fdl-sdoml-v2/sdomlv2_small.zarr/").train_dataloader()
         >>> for batch_idx, batch in enumerate(loader):
         >>>     X, headers  = batch
 
         Args:
-            storage_root ([str]): [Root path in the GCS bucket containing the zarr archives.]
+            storage_root (str): [Root path containing the zarr archives]
+            storage_driver(str, optional): [Storage driver used to load the data. Either 'gcs' (Google Storage Bucket) or 'fs' (local file system)]. Defaults to gcs.
             batch_size (int, optional): [See pytorch DataLoader]. Defaults to 16.
-            n_items ([int], optional): [Number of items in the dataset, by default number of files in the loaded set 
-                                            but can be smaller (uses subset) or larger (uses file multiple times)]. Defaults to None.
+            n_items (int, optional): [Number of items in the dataset, by default number of files in the loaded set 
+                                            but can be smaller (uses subset) or larger (uses files multiple times)]. Defaults to None.
             pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
             num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
             drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
             target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 256.
-            channel (str, optional): [Channel name that should be used]. Defaults to "171A".
-            year (str, optional): [Allows to prefilter the dataset by year, useful for train/test splits]. Defaults to 2010.
-            start (str, optional): [Allows to restrict the dataset temporally, only works in combination with freq]. Defaults to None.
-            end (str, optional): [Allows to restrict the dataset temporally, only works in combination with freq]. Defaults to None.
-            freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel]. Defaults to None.
+            channel (str, optional): [Channel name that should be used. If None all available channels will be used.]. Defaults to "171A".
+            year (str, optional): [Allows to prefilter the dataset by year. If None all available years will be used.]. Defaults to "2010".
+            train_start (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
+            train_end (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
+            test_start (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
+            test_end (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
+            freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel. When using freq, start and end should also be specified for train and test]. Defaults to None.
             shuffle (bool, optional): [See pytorch DataLoader]. Defaults to False.
+            train_val_split_strategy (str, optional): [Strategy for the train-validation split. Either 'temporal' or 'random']. Defaults to "temporal".
+            train_val_split_ratio (float, optional): [Split-ratio for the train-validation split]. Defaults to 0.7.
+            train_val_split_temporal_chunk_size (str, optional): [Temporal chunks for the train-validation splits]. Defaults to "14d".
         """
         super().__init__()
 
@@ -263,8 +297,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             storage_root=storage_root,
             storage_driver=storage_driver,
             year=year,
-            start=start,
-            end=end,
+            start=train_start,
+            end=train_end,
             freq=freq,
             n_items=n_items,
             channel=channel,
@@ -275,8 +309,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             storage_root=storage_root,
             storage_driver=storage_driver,
             year=year,
-            start=start,
-            end=end,
+            start=test_start,
+            end=test_end,
             freq=freq,
             n_items=n_items,
             channel=channel,
@@ -329,7 +363,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           drop_last=self.drop_last,)
 
 
-def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temporal_chunk_size="6h",
+def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temporal_chunk_size="14d",
                              generator: Optional[Generator] = default_generator) -> Tuple[Subset, Subset]:
     r"""
     Temporally split a dataset into non-overlapping temporal chunks and compose the chunks to new datasets of the given split ratio.
@@ -347,7 +381,7 @@ def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temp
     """
 
     assert hasattr(
-        dataset, 'attrs'), "data_source should have an attrs property"
+        dataset, 'attrs'), "dataset should have an attrs property"
 
     format = None
     if dataset.channel in hmi_channels:
@@ -364,8 +398,9 @@ def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temp
 
     group_indices = randperm(len(grouped), generator=generator).tolist()
     num_chunks = len(group_indices)
-    train_size = int(math.floor(num_chunks*split_ratio))
-
+    train_size = int(math.ceil(num_chunks*split_ratio))
+    print(
+        f"Selecting groups for train-validation split. Number of groups {num_chunks}, number of groups for training {train_size}, number of groups for validation {num_chunks - train_size}")
     train_indices = []
     val_indices = []
     groups = list(grouped)
@@ -382,3 +417,8 @@ def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temp
     print(
         f"splitting Dataset into two subsets. Train size {len(train_indices)}, validation size {len(val_indices)}")
     return Subset(dataset, train_indices), Subset(dataset, val_indices)
+
+
+if __name__ == '__main__':
+    loader = SDOMLv2DataModule("fdl-sdoml-v2/sdomlv2_small.zarr/", channel="193A",
+                               train_start="2010-08-28 00:00:00", train_end="2010-08-28 23:59:59").train_dataloader()
