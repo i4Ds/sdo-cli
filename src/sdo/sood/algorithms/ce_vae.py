@@ -468,7 +468,7 @@ def main(
                              callbacks=[
                                  ModelSummary(max_depth=4),
                                  EarlyStopping(
-                                     monitor="val_loss", mode="min"),
+                                     monitor="val_loss", mode="min", patience=10),
                                  ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")])
         # TODO log_graph does not work when running on multiple GPUs
         # # AttributeError: Can't pickle local object 'TorchGraph.create_forward_hook.<locals>.after_forward_hook'
