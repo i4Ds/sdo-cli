@@ -1,3 +1,9 @@
+from torch import default_generator, randperm, Generator
+from typing import (
+    Tuple,
+    Optional
+)
+from torch.utils.data import Dataset, Subset
 import torch
 import numpy as np
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -9,6 +15,7 @@ import pandas as pd
 import dask.array as da
 
 hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
+hmi_channels = ['Bx', 'By', 'Bz']
 
 
 class SDOMLv2NumpyDataset(Dataset):
@@ -66,7 +73,7 @@ class SDOMLv2NumpyDataset(Dataset):
                 np.shape(t_obs)[0]), columns=["Time"])
             # TODO for HMI the date format is different 2010.05.01_00:12:04_TAI
             format = None
-            if channel in ['Bx', 'By', 'Bz']:
+            if channel in hmi_channels:
                 format = hmi_date_format
             df_time["Time"] = pd.to_datetime(
                 df_time["Time"], format=format, utc=True)
@@ -89,6 +96,7 @@ class SDOMLv2NumpyDataset(Dataset):
         self.transforms = transforms
         self.all_images = all_images
         self.attrs = attrs
+        self.channel = channel
 
         self.data_len = len(self.all_images)
         print(f"found {len(self.all_images)} images")
@@ -192,7 +200,7 @@ def get_default_transforms(target_size=128, channel="171"):
     transforms = Compose(
         [Resize((target_size, target_size)),
          # TODO find out if these transforms make sense
-         Lambda(lambda_transform),
+         Lambda(lambda x: lambda_transform(x)),
          Normalize(mean=[mean], std=[std]),
          # required to remove strange distribution of pixels (everything too bright)
          Normalize(mean=(0.5), std=(0.5))
@@ -216,7 +224,11 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  start=None,
                  end=None,
                  freq=None,
-                 shuffle: bool = False):
+                 shuffle: bool = False,
+                 train_val_split_strategy: str = "temporal",
+                 train_val_split_ratio: float = 0.7,
+                 train_val_split_temporal_chunk_size: str = "14d"
+                 ):
         """
         Creates a LightningDataModule for the SDO Ml v2 dataset
 
@@ -272,12 +284,16 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         )
 
         # TODO investigate the use of a ChunkSampler in order to improve data loading performance https://gist.github.com/wassname/8ae1f64389c2aaceeb84fcd34c3651c3
-        # TODO implement temporal split
-        num_samples = len(dataset)
-        splits = [int(math.floor(num_samples*0.8)),
-                  int(math.ceil(num_samples * 0.2))]
-        print(f"splitting datatset with {num_samples} into {splits}")
-        self.dataset_train, self.dataset_val = random_split(dataset, splits)
+        if train_val_split_strategy == "random":
+            num_samples = len(dataset)
+            splits = [int(math.floor(num_samples*train_val_split_ratio)),
+                      int(math.ceil(num_samples * (1 - train_val_split_ratio)))]
+            print(f"splitting datatset with {num_samples} into {splits}")
+            self.dataset_train, self.dataset_val = random_split(
+                dataset, splits)
+        elif train_val_split_strategy == "temporal":
+            self.dataset_train, self.dataset_val = temporal_train_val_split(
+                dataset, split_ratio=train_val_split_ratio, temporal_chunk_size=train_val_split_temporal_chunk_size)
         self.batch_size = batch_size
         self.pin_memory = pin_memory
         self.num_workers = num_workers
@@ -311,3 +327,58 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,)
+
+
+def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temporal_chunk_size="6h",
+                             generator: Optional[Generator] = default_generator) -> Tuple[Subset, Subset]:
+    r"""
+    Temporally split a dataset into non-overlapping temporal chunks and compose the chunks to new datasets of the given split ratio.
+    The split ratio is an approximation as all data in a temporal chunk will end up in either the train or validation dataset.
+
+    Optionally fix the generator for reproducible results, e.g.:
+
+    >>> temporal_split(sdo_ml_dataset, split_ratio=0.8, temporal_chunk_size="6h", generator=torch.Generator().manual_seed(42))
+
+    Args:
+        dataset (Dataset): SDOML v2 Dataset to be split
+        split_ratio (float): train-validation split ratio
+        temporal_chunk_size (freq): size of the temporal chunks as a frequency
+        generator (Generator): Generator used for the random permutation.
+    """
+
+    assert hasattr(
+        dataset, 'attrs'), "data_source should have an attrs property"
+
+    format = None
+    if dataset.channel in hmi_channels:
+        format = hmi_date_format
+
+    t_obs = np.array(dataset.attrs["T_OBS"])
+    data = {"Time": t_obs, "Index": np.arange(np.shape(t_obs)[0])}
+    df_time = pd.DataFrame(data, index=np.arange(
+        np.shape(t_obs)[0]), columns=["Time", "Index"])
+    df_time["Time"] = pd.to_datetime(
+        df_time["Time"], format=format, utc=True)
+    df_time = df_time.set_index('Time')
+    grouped = df_time.groupby(pd.Grouper(freq=temporal_chunk_size))
+
+    group_indices = randperm(len(grouped), generator=generator).tolist()
+    num_chunks = len(group_indices)
+    train_size = int(math.floor(num_chunks*split_ratio))
+
+    train_indices = []
+    val_indices = []
+    groups = list(grouped)
+    for i in group_indices[0:train_size]:
+        _, group = groups[i]
+        for _, row in group.iterrows():
+            train_indices.append(row["Index"])
+
+    for i in group_indices[train_size:]:
+        _, group = groups[i]
+        for _, row in group.iterrows():
+            val_indices.append(row["Index"])
+
+    print(
+        f"splitting Dataset into two subsets. Train size {len(train_indices)}, validation size {len(val_indices)}")
+    return Subset(dataset, train_indices), Subset(dataset, val_indices)
