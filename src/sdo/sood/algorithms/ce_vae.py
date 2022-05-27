@@ -376,7 +376,14 @@ def main(
     pred_dir=None,
     data_dir=None,
     dataset="CuratedImageParameterDataset",
-    num_data_loader_workers=0
+    num_data_loader_workers=0,
+    train_start="2010-01-01 00:00:00",
+    train_end="2010-08-30 23:59:59",
+    test_start="2010-09-01 00:00:00",
+    test_end="2010-12-31 23:59:59",
+    train_val_split_ratio=0.8,
+    # half a rotation
+    train_val_split_temporal_chunk_size="14d"
 ):
     folder_time_format = "%Y%m%d-%H%M%S"
     work_dir = Path(
@@ -441,13 +448,20 @@ def main(
                                                 pin_memory=False,
                                                 batch_size=batch_size,
                                                 channel="171A",
-                                                target_size=input_shape[2])
+                                                year="2010",
+                                                target_size=input_shape[2],
+                                                train_start=train_start,
+                                                train_end=train_end,
+                                                test_start=test_start,
+                                                test_end=test_end,
+                                                train_val_split_ratio=train_val_split_ratio,
+                                                train_val_split_temporal_chunk_size=train_val_split_temporal_chunk_size)
 
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=n_epochs,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
-                             # distributed training does not yet work because the lamdbda cannot be pickled
+                             # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=1,
                              accelerator="auto",
                              default_root_dir=work_dir,

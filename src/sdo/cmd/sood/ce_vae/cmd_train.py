@@ -25,6 +25,12 @@ import click
     "--dataset", type=click.Choice(["CuratedImageParameterDataset", "SDOMLDatasetV1", "SDOMLDatasetV2"], case_sensitive=False), required=False, default="CuratedImageParameterDataset"
 )
 @click.option("--num-data-loader-workers", type=int, default=0)
+@click.option("--train-start-date", type=str, default="2010-01-01 00:00:00")
+@click.option("--train-end-date", type=str, default="2010-08-30 23:59:59")
+@click.option("--test-start-date", type=str, default="2010-09-01 00:00:00")
+@click.option("--test-end-date", type=str, default="2010-12-31 23:59:59")
+@click.option("--train-val-split-ratio", type=float, default=0.8)
+@click.option("--train-val-split-temporal-chunk-size", type=str, default="14d")
 @pass_environment
 def train(ctx,
           target_size,
@@ -42,7 +48,13 @@ def train(ctx,
           log_dir,
           data_dir,
           dataset,
-          num_data_loader_workers):
+          num_data_loader_workers,
+          train_start_date,
+          train_end_date,
+          test_start_date,
+          test_end_date,
+          train_val_split_ratio,
+          train_val_split_temporal_chunk_size):
 
     main(run="train",
          target_size=target_size,
@@ -59,4 +71,11 @@ def train(ctx,
          log_dir=log_dir,
          data_dir=data_dir,
          dataset=dataset,
-         num_data_loader_workers=num_data_loader_workers)
+         num_data_loader_workers=num_data_loader_workers,
+         train_start=train_start_date,
+         train_end=train_end_date,
+         test_start=test_start_date,
+         test_end=test_end_date,
+         train_val_split_ratio=train_val_split_ratio,
+         train_val_split_temporal_chunk_size=train_val_split_temporal_chunk_size
+         )
