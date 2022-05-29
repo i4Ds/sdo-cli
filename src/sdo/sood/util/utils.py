@@ -292,6 +292,7 @@ def merge_config(user: dict, default: dict) -> dict:
 
 
 def read_config(config_file: Path) -> dict:
+    config_file = Path(os.path.expanduser(config_file))
     with open(config_file, "r") as f:
         user_config = yaml.safe_load(f)
 

@@ -76,7 +76,7 @@ train:
     value: 10
     desc: "Stop training once this number of epochs is reached."
   lr:
-    value: 1e-4
+    value: 0.0001
     desc: "Learning rate"
   use_geco:
     value: false
