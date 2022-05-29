@@ -431,7 +431,7 @@ def main(
                 data_module = SDOMLv2DataModule(storage_root=config.data.data_dir.value,
                                                 storage_driver=config.data.sdo_ml_v2.storage_driver.value,
                                                 num_workers=config.data.num_data_loader_workers.value,
-                                                pin_memory=False,
+                                                pin_memory=config.data.pin_memory.value,
                                                 batch_size=config.data.batch_size.value,
                                                 prefetch_factor=config.data.prefetch_factor.value,
                                                 channel="171A",
