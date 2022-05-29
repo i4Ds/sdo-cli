@@ -107,9 +107,9 @@ class ceVAE(pl.LightningModule):
             )
             ce_tensor = torch.from_numpy(ce_tensor).float()
             ce_tensor = ce_tensor.type_as(x)
-            #ce_tensor = ce_tensor.to(self.device)
             inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
-            #inpt_noisy = inpt_noisy.to(self.device)
+            print("inpt_noisy device is")
+            print(inpt_noisy.get_device())
             x_rec_ce, _ = self.model(inpt_noisy)
             rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
             loss_ce = rec_loss_ce
