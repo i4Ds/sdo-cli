@@ -1,11 +1,13 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
 # https://towardsdatascience.com/variational-autoencoder-demystified-with-pytorch-implementation-3a06bee395ed
+import json
 from dateutil.parser import parse
 import datetime
 import os
 import sys
 from math import ceil
 from pathlib import Path
+import logging
 
 import numpy as np
 import pytorch_lightning as pl
@@ -28,6 +30,8 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
 from torchvision.utils import save_image
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 class ceVAE(pl.LightningModule):
@@ -62,7 +66,8 @@ class ceVAE(pl.LightningModule):
         self.model = VAE(
             input_size=input_shape[1:], z_dim=z_dim, fmap_sizes=model_feature_map_sizes)
 
-        self.save_hyperparameters()
+        # already saved via config
+        # self.save_hyperparameters()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
@@ -101,10 +106,10 @@ class ceVAE(pl.LightningModule):
                 n_squares=(0, 3),
             )
             ce_tensor = torch.from_numpy(ce_tensor).float()
-            ce_tensor = ce_tensor.to(self.device)
+            ce_tensor = ce_tensor.type_as(x)
+            #ce_tensor = ce_tensor.to(self.device)
             inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
-
-            inpt_noisy = inpt_noisy.to(self.device)
+            #inpt_noisy = inpt_noisy.to(self.device)
             x_rec_ce, _ = self.model(inpt_noisy)
             rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
             loss_ce = rec_loss_ce
@@ -357,12 +362,17 @@ class ceVAE(pl.LightningModule):
         return (1.0 - alpha) * new + alpha * old
 
 
+folder_time_format = "%Y%m%d-%H%M%S"
+
+
 def main(
     run: str = "train",
     config_file: Path = Path("./config/defaults.yaml")
 ):
     config = read_config(config_file)
-    folder_time_format = "%Y%m%d-%H%M%S"
+    logger.info("found config")
+    logger.info(json.dumps(config, indent=2))
+
     work_dir = Path(
         config.log_dir.value) / Path(f"{datetime.datetime.now().strftime(folder_time_format)}_cevae")
     if not os.path.exists(work_dir):
