@@ -443,6 +443,7 @@ def main(
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=1,
+                             # TODO disable
                              profiler="pytorch",
                              accelerator="auto",
                              default_root_dir=work_dir,

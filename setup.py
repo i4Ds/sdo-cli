@@ -25,6 +25,7 @@ setup(
                       "drms>=0.6.2",
                       "h5netcdf>=1.0.0",
                       "matplotlib>=3.5.1",
+                      "munch>=2.5.0",
                       "opencv-python>=4.5.5.64",
                       "python-dotenv>=0.20.0",
                       "pandas>=1.4.2",

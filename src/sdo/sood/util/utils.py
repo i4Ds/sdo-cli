@@ -1,3 +1,4 @@
+from munch import DefaultMunch
 import json
 import random
 import warnings
@@ -9,7 +10,6 @@ import os
 from pathlib import Path
 from PIL import Image
 
-import json
 import yaml
 
 
@@ -276,11 +276,6 @@ def save_model(model, name, model_dir, n_iter=None, iter_format="{:05d}", prefix
     torch.save(model.state_dict(), model_file)
 
 
-class obj:
-    def __init__(self, dict1):
-        self.__dict__.update(dict1)
-
-
 def merge_config(user: dict, default: dict) -> dict:
     if isinstance(user, dict) and isinstance(default, dict):
         for k, v in default.items():
@@ -303,4 +298,4 @@ def read_config(config_file: Path) -> dict:
             user_config = merge_config(user_config, default_config)
 
     # Hack to convert dict to object
-    return json.loads(json.dumps(user_config), object_hook=obj)
+    return DefaultMunch.fromDict(user_config)
