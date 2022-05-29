@@ -456,7 +456,7 @@ def main(
                              # TODO disable
                              profiler=PyTorchProfiler(
                                  dirpath=work_dir,
-                                 filename="output.profile", record_shapes=True, with_stack=True),
+                                 filename="output.profile", record_shapes=True),
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
