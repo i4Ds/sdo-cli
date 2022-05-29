@@ -108,8 +108,6 @@ class ceVAE(pl.LightningModule):
             ce_tensor = torch.from_numpy(ce_tensor).float()
             ce_tensor = ce_tensor.type_as(x)
             inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
-            logger.info("inpt_noisy device is %s which has is_cuda %s, main device is %s; recorded device is %s" %
-                        (inpt_noisy.get_device(), inpt_noisy.is_cuda,  x.get_device(), self.device))
             x_rec_ce, _ = self.model(inpt_noisy)
             rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
             loss_ce = rec_loss_ce
@@ -457,7 +455,7 @@ def main(
                              gpus=1,
                              # TODO disable
                              profiler=PyTorchProfiler(
-                                 filename="output.profile"),
+                                 filename="output.profile", record_shapes=True, with_stack=True),
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
