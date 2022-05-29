@@ -23,15 +23,16 @@ hmi_channels = ['Bx', 'By', 'Bz']
 class SDOMLv2NumpyDataset(Dataset):
     def __init__(
             self,
-            storage_root,
-            storage_driver,
-            n_items,
-            year,
-            channel,
-            start,
-            end,
-            freq,
-            transforms):
+            storage_root: str,
+            storage_driver: str,
+            n_items: int,
+            year: str,
+            channel: str,
+            start: str,
+            end: str,
+            freq: str,
+            transforms: list,
+            cache_max_size: int):
         """Dataset which loads the SDO Ml v2 dataset from a zarr directory.
         """
 
@@ -45,8 +46,8 @@ class SDOMLv2NumpyDataset(Dataset):
         else:
             raise f"storage driver {storage_driver} not supported"
 
-        # TODO implement caching cache = zarr.LRUStoreCache(store, max_size=2**28)
-        root = zarr.group(store)
+        cache = zarr.LRUStoreCache(store, max_size=cache_max_size)
+        root = zarr.group(store=cache)
         print("discovered the following zarr directory structure")
         print(root.tree())
 
@@ -247,6 +248,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  num_workers: int = 0,
                  drop_last: bool = False,
                  prefetch_factor: int = 8,
+                 cache_max_size: int = 2*1024*1024*2014,
                  target_size: int = 256,
                  channel: str = "171A",
                  year: str = "2010",
@@ -278,6 +280,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
             num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
             drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
+            cache_max_size (int, optional): The maximum size that the cache may grow to, in number of bytes. Defaults to 2GB.
             target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 256.
             channel (str, optional): [Channel name that should be used. If None all available channels will be used.]. Defaults to "171A".
             year (str, optional): [Allows to prefilter the dataset by year. If None all available years will be used.]. Defaults to "2010".
@@ -299,6 +302,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         dataset = SDOMLv2NumpyDataset(
             storage_root=storage_root,
             storage_driver=storage_driver,
+            cache_max_size=cache_max_size,
             year=year,
             start=train_start,
             end=train_end,
@@ -311,6 +315,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         self.dataset_test = SDOMLv2NumpyDataset(
             storage_root=storage_root,
             storage_driver=storage_driver,
+            cache_max_size=cache_max_size,
             year=year,
             start=test_start,
             end=test_end,

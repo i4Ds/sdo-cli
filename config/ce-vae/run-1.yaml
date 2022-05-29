@@ -27,6 +27,6 @@ data:
       value: 1h
 predict:
   mode:
-    value: pixel
+    value: sample
   pred_dir:
     value: "./output/predictions"

@@ -437,6 +437,7 @@ def main(
                                                 train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value)
 
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
+        wandb_logger.experiment.config.update(config)
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=config.train.n_epochs.value,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
@@ -520,7 +521,8 @@ def main(
                 # TODO rather normalize over the full dataset
                 save_image(pixel_scores, file_path, normalize=True)
             if config.predict.mode.value == "sample":
-                sample_score = cevae_algo.score_sample(img)
+                # TODO make it work for batches instead of single images
+                sample_score = cevae_algo.score_sample(img[0])
                 with open(os.path.join(pred_dir, "predictions.txt"), "a") as target_file:
                     target_file.write(file_path.name + "," +
                                       str(sample_score) + "\n")

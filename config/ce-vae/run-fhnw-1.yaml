@@ -1,0 +1,28 @@
+model:
+  load_path:
+    value: null
+data:
+  data_dir:
+    value: /nas08-data02/astroml_data/sdomlv2_small/sdomlv2_small.zarr
+  dataset:
+    value: SDOMLDatasetV2
+  num_data_loader_workers:
+    value: 16
+  prefetch_factor:
+    value: 8
+  batch_size:
+    value: 32
+  sdo_ml_v2:
+    train_start_date:
+      value: "2010-08-01 00:00:00"
+    train_end_date:
+      value: "2010-08-20 23:59:59"
+    test_start_date:
+      value: "2010-08-21 00:00:00"
+    test_end_date:
+      value: "2010-08-31 23:59:59"
+predict:
+  mode:
+    value: sample
+  pred_dir:
+    value: "./output/predictions"
