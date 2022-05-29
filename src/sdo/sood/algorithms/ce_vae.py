@@ -455,6 +455,7 @@ def main(
                              gpus=1,
                              # TODO disable
                              profiler=PyTorchProfiler(
+                                 dirpath=work_dir,
                                  filename="output.profile", record_shapes=True, with_stack=True),
                              accelerator="auto",
                              default_root_dir=work_dir,
