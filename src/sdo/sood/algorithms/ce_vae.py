@@ -448,13 +448,16 @@ def main(
 
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         wandb_logger.experiment.config.update(config)
+
+        from pytorch_lightning.profiler import PyTorchProfiler
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=config.train.n_epochs.value,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=1,
                              # TODO disable
-                             profiler="pytorch",
+                             profiler=PyTorchProfiler(
+                                 filename="output.profile"),
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
