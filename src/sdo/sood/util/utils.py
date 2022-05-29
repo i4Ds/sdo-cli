@@ -9,6 +9,9 @@ import os
 from pathlib import Path
 from PIL import Image
 
+import json
+import yaml
+
 
 def get_vanilla_image_gradient(model, inpt, err_fn, abs=False):
     if isinstance(model, torch.nn.Module):
@@ -271,3 +274,32 @@ def save_model(model, name, model_dir, n_iter=None, iter_format="{:05d}", prefix
 
     model_file = os.path.join(model_dir, name)
     torch.save(model.state_dict(), model_file)
+
+
+class obj:
+    def __init__(self, dict1):
+        self.__dict__.update(dict1)
+
+
+def merge_config(user: dict, default: dict) -> dict:
+    if isinstance(user, dict) and isinstance(default, dict):
+        for k, v in default.items():
+            if k not in user:
+                user[k] = v
+            else:
+                user[k] = merge_config(user[k], v)
+    return user
+
+
+def read_config(config_file: Path) -> dict:
+    with open(config_file, "r") as f:
+        user_config = yaml.safe_load(f)
+
+    default_config_file = config_file.parent / Path("defaults.yaml")
+    if os.path.exists(default_config_file):
+        with open(default_config_file, "r") as f:
+            default_config = yaml.safe_load(f)
+            user_config = merge_config(user_config, default_config)
+
+    # Hack to convert dict to object
+    return json.loads(json.dumps(user_config), object_hook=obj)

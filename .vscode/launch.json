@@ -27,6 +27,21 @@
         "--end=2011-08-02T23:59:59",
         "--event-type=AR"
       ]
+    },
+    {
+      "name": "Python: SDO CLI Predict",
+      "type": "python",
+      "request": "launch",
+      "stopOnEntry": false,
+      "justMyCode": false,
+      "program": "${workspaceRoot}/src/sdo/cli.py",
+      "console": "integratedTerminal",
+      "args": [
+        "sood",
+        "ce_vae",
+        "predict",
+        "--config-file=./config/ce-vae/run-1.yaml"
+      ]
     }
   ]
 }

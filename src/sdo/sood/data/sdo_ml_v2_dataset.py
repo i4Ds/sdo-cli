@@ -45,6 +45,7 @@ class SDOMLv2NumpyDataset(Dataset):
         else:
             raise f"storage driver {storage_driver} not supported"
 
+        # TODO implement caching cache = zarr.LRUStoreCache(store, max_size=2**28)
         root = zarr.group(store)
         print("discovered the following zarr directory structure")
         print(root.tree())
@@ -366,12 +367,11 @@ class SDOMLv2DataModule(pl.LightningDataModule):
 
     def predict_dataloader(self):
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
-                          shuffle=self.shuffle,
+                          shuffle=False,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
-                          prefetch_factor=self.prefetch_factor,
-                          sampler=SequenceInChunkSampler(self.dataset_test))
+                          prefetch_factor=self.prefetch_factor)
 
 
 def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temporal_chunk_size="14d",

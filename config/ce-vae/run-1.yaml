@@ -1,0 +1,32 @@
+model:
+  load_path:
+    value: /Users/mariusgiger/Downloads/model-36tfoo4q.ckpt
+data:
+  data_dir:
+    value: fdl-sdoml-v2/sdomlv2_small.zarr/
+  dataset:
+    value: SDOMLDatasetV2
+  num_data_loader_workers:
+    value: 0
+  prefetch_factor:
+    value: 2
+  batch_size:
+    value: 1
+  sdo_ml_v2:
+    storage_driver:
+      value: gcs
+    train_start_date:
+      value: "2010-08-30 00:00:00"
+    train_end_date:
+      value: "2010-08-30 23:59:59"
+    test_start_date:
+      value: "2010-08-29 00:00:00"
+    test_end_date:
+      value: "2010-08-29 23:59:59"
+    train_val_split_temporal_chunk_size:
+      value: 1h
+predict:
+  mode:
+    value: pixel
+  pred_dir:
+    value: "./output/predictions"
