@@ -21,8 +21,14 @@ data:
       value: "2010-08-21 00:00:00"
     test_end_date:
       value: "2010-08-31 23:59:59"
+    train_val_split_ratio:
+      value: 0.8
+    train_val_split_temporal_chunk_size:
+      value: 3d
 predict:
   mode:
     value: sample
   pred_dir:
     value: "./output/predictions"
+log_dir:
+  value: "./output/train-sdo-ml"
