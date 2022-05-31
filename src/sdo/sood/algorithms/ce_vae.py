@@ -446,6 +446,9 @@ def main(
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=n_epochs,
+                             # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
+                             # distributed training does not yet work because the lamdbda cannot be pickled
+                             gpus=1,
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
