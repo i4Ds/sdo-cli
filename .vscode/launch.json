@@ -42,6 +42,37 @@
         "predict",
         "--config-file=./config/ce-vae/run-1.yaml"
       ]
+    },
+    {
+      "name": "Python: SDO CLI GOES Download",
+      "type": "python",
+      "request": "launch",
+      "stopOnEntry": false,
+      "justMyCode": false,
+      "program": "${workspaceRoot}/src/sdo/cli.py",
+      "console": "integratedTerminal",
+      "args": [
+        "goes",
+        "download",
+        "--start=2010-01-01T00:00:00",
+        "--end=2015-12-30T23:59:59",
+        "--output=./tmp/"
+      ]
+    },
+    {
+      "name": "Python: SDO CLI GOES Get",
+      "type": "python",
+      "request": "launch",
+      "stopOnEntry": false,
+      "justMyCode": false,
+      "program": "${workspaceRoot}/src/sdo/cli.py",
+      "console": "integratedTerminal",
+      "args": [
+        "goes",
+        "get",
+        "--timestamp=2010-01-01T02:20:00",
+        "--cache-dir=./tmp/"
+      ]
     }
   ]
 }
