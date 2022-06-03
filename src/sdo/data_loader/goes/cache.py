@@ -106,7 +106,17 @@ def fetch_goes_metadata(start, end, path):
                 goes_ts_df.to_csv(goes_path, index=True,
                                   date_format=ISO_FORMAT)
 
-                # TODO fix is within a leap second but datetime does not support leap seconds'),)  /Users/mariusgiger/repos/master/sdo-cli/tmp/goes_cache/2012/6/goes_ts.csv'
+                # NOTE sunpy is not dropping data with leap seconds therefore the following error can occur
+                # "XY is within a leap second but datetime does not support leap seconds"
+                # this can be fixed by changing the following code in
+                # https://github.com/sunpy/sunpy/blob/6f586392f9799383017e0566d4303928183c06be/sunpy/timeseries/sources/goes.py#L288
+                #
+                # not_leap_seconds = np.char.find(times.iso, ":60.") == -1
+                # times = times[not_leap_seconds]
+                # data = DataFrame({"xrsa": xrsa[not_leap_seconds], "xrsb": xrsb[not_leap_seconds]}, index=times.datetime)
+                #
+                # also refer to: https://github.com/sunpy/sunpy/issues/5422
+
             except Exception as e:
                 # it can happen that the downloaded hdf5 files are invalid. In this case run the ./check.sh command and remove the
                 # corrupt files.
