@@ -1,4 +1,7 @@
 
+from datetime import timedelta
+from dateutil import parser
+import dask.dataframe as dd
 import numpy as np
 import datetime as dt
 import os
@@ -60,8 +63,9 @@ def fetch_goes_metadata(start, end, path):
     # Since March 2020, data prior to GOES 15 (incl) is no longer supported by NOAA and GOES 16 and 17 data is now provided.
     # GOES 16 and 17 are part of the GOES-R series and provide XRS data at a better time resolution (1s).
     # GOES 16 has been taking observations from 2017, and GOES 17 since 2018
+    cache_dir = Path(path) / Path("goes_cache")
     for t_start, t_end in get_date_ranges(start, end):
-        goes_dir = Path(path) / Path("goes_cache") / Path(str(t_start.year)) /\
+        goes_dir = cache_dir / Path(str(t_start.year)) /\
             Path(str(t_start.month))
         goes_path = goes_dir / Path('goes_ts.csv')
         if not Path.exists(goes_path):
@@ -126,37 +130,50 @@ def fetch_goes_metadata(start, end, path):
                 logger.error(
                     f"could not download GOES series for {goes_path}", e)
                 #raise e
+        else:
+            logger.debug(
+                f"skipping downloading data for {str(goes_path)} as it is already there..")
+
+    # convert to parquet format to read with dask
+    # https://docs.dask.org/en/latest/generated/dask.dataframe.DataFrame.repartition.html
+    # https://docs.dask.org/en/stable/dataframe-best-practices.html
+    parquet_dir = cache_dir / 'goes_ts.parquet'
+    if not os.path.exists(parquet_dir):
+        ddf = dd.read_csv(str(cache_dir) + '/**/*.csv')
+        ddf["timestamp"] = dd.to_datetime(ddf['timestamp'], format=ISO_FORMAT)
+        ddf = ddf.set_index('timestamp', drop=True)
+        ddf = ddf.repartition(freq='7d')
+        ddf.to_parquet(parquet_dir, overwrite=True)
+    else:
+        logger.info("skipping conversion to parquet as it is already converted")
 
 
 def get_goes_at(at, cache_dir, max_diff=60):
-    # https://github.com/sunpy/sunpy/blob/master/sunpy/timeseries/sources/goes.py
-    # https://ngdc.noaa.gov/stp/satellite/goes/doc/GOES_XRS_readme.pdf
-
-    goes_path = Path(cache_dir) / Path("goes_cache") / Path(str(at.year)) /\
-        Path(str(at.month)) / Path('goes_ts.csv')
-
-    if not os.path.exists(goes_path):
-        raise Exception("please first cache GOES data before accessing it")
-
-    goes_ts_df = pd.read_csv(goes_path)
-    goes_ts_df["timestamp"] = pd.to_datetime(
-        goes_ts_df['timestamp'], format=ISO_FORMAT)
-    goes_ts_df = goes_ts_df.set_index('timestamp', drop=False)
-    goes_ts_df = goes_ts_df.sort_index()
-    goes_at_time = goes_ts_df.iloc[goes_ts_df.index.get_loc(
-        at, method='nearest')]
-
     # NOAA have recently re-processed the GOES 13, 14 and 15 XRS science quality data,
     # such that the SWPC scaling factor has been removed. This means that no post processing is necessary anymore.
     # The sunpy GOES XRS client for Fido now provides this new re-processed data.
     # https://satdat.ngdc.noaa.gov/sem/goes/data/science/xrs/GOES_13-15_XRS_Science-Quality_Data_Readme.pdf
     # https://data.ngdc.noaa.gov/platforms/solar-space-observing-satellites/goes/goes16/l1b/docs/GOES-R_EXIS_XRS_L1b_Science-Quality_Data_ReadMe.pdf
+    # https://github.com/sunpy/sunpy/blob/master/sunpy/timeseries/sources/goes.py
+    # https://ngdc.noaa.gov/stp/satellite/goes/doc/GOES_XRS_readme.pdf
 
-    ts = goes_at_time["timestamp"]
-    diff = (ts - at).total_seconds()
-    # if diff is bigger than max_diff, raise an exception..
-    if diff >= max_diff:
+    goes_path = Path(cache_dir) / Path("goes_cache") / Path("goes_ts.parquet")
+    if not os.path.exists(goes_path):
+        raise Exception("please first cache GOES data before accessing it")
+
+    ddf = dd.read_parquet(goes_path, engine="pyarrow",
+                          calculate_divisions=True)
+    if type(at) is str:
+        at = parser.parse(at)
+    search_dt_start = at - timedelta(seconds=max_diff)
+    search_dt_end = at + timedelta(seconds=max_diff)
+
+    result = ddf.loc[search_dt_start:search_dt_end].compute()
+    if result.size == 0:
         raise Exception(
-            f"goes diff too large, goes at {ts} wanted {at}, diff {diff}")
+            f"no goes value found at {at} within +/- {max_diff}")
+    result.reset_index(inplace=True)
+    idx = result.timestamp.subtract(at).abs().idxmin()
+    goes_at_time = result.iloc[idx]
 
     return goes_at_time.to_dict()

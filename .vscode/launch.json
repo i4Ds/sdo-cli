@@ -55,7 +55,7 @@
         "goes",
         "download",
         "--start=2010-01-01T00:00:00",
-        "--end=2015-12-30T23:59:59",
+        "--end=2020-12-30T23:59:59",
         "--output=./tmp/"
       ]
     },
@@ -70,8 +70,8 @@
       "args": [
         "goes",
         "get",
-        "--timestamp=2010-01-01T02:20:00",
-        "--cache-dir=./tmp/"
+        "--timestamp=2015-06-01T02:20:00",
+        "--cache-dir=./tmp"
       ]
     }
   ]
