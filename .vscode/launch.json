@@ -13,7 +13,7 @@
       "justMyCode": true
     },
     {
-      "name": "Python: SDO CLI",
+      "name": "Python: SDO CLI get events",
       "type": "python",
       "request": "launch",
       "stopOnEntry": false,
@@ -23,9 +23,9 @@
       "args": [
         "events",
         "get",
-        "--start=2011-08-01T00:00:00",
-        "--end=2011-08-02T23:59:59",
-        "--event-type=AR"
+        "--start=2011-01-01T00:00:00",
+        "--end=2020-12-31T23:59:59",
+        "--event-type=FL"
       ]
     },
     {
@@ -41,6 +41,37 @@
         "ce_vae",
         "predict",
         "--config-file=./config/ce-vae/run-1.yaml"
+      ]
+    },
+    {
+      "name": "Python: SDO CLI GOES Download",
+      "type": "python",
+      "request": "launch",
+      "stopOnEntry": false,
+      "justMyCode": false,
+      "program": "${workspaceRoot}/src/sdo/cli.py",
+      "console": "integratedTerminal",
+      "args": [
+        "goes",
+        "download",
+        "--start=2010-01-01T00:00:00",
+        "--end=2020-12-31T23:59:59",
+        "--output=./tmp/new"
+      ]
+    },
+    {
+      "name": "Python: SDO CLI GOES Get",
+      "type": "python",
+      "request": "launch",
+      "stopOnEntry": false,
+      "justMyCode": false,
+      "program": "${workspaceRoot}/src/sdo/cli.py",
+      "console": "integratedTerminal",
+      "args": [
+        "goes",
+        "get",
+        "--timestamp=2015-06-01T02:20:00",
+        "--cache-dir=./tmp"
       ]
     }
   ]
