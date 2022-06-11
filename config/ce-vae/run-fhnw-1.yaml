@@ -3,7 +3,7 @@ model:
     value: null
 data:
   data_dir:
-    value: /nas08-data02/astroml_data/sdomlv2_small/sdomlv2_small.zarr
+    value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_small/sdomlv2_small.zarr
   dataset:
     value: SDOMLDatasetV2
   num_data_loader_workers:

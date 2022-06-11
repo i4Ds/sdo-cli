@@ -454,9 +454,12 @@ def main(
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=1,
                              # TODO disable
+                             # https://pytorch-lightning.readthedocs.io/en/stable/advanced/profiler.html
+                             # https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html
                              profiler=PyTorchProfiler(
-                                 dirpath=work_dir,
-                                 filename="output.profile", record_shapes=True),
+                                 #  dirpath=work_dir,
+                                 #  filename="output.profile",
+                                 record_shapes=True),
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
