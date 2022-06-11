@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 from sdo.cli import pass_environment
 
-from sdo.data_loader.goes.cache import fetch_goes_metadata
+from sdo.data_loader.goes.cache import GOESCache
 
 
 @click.command("download", short_help="Loads a the GOES X-Ray flux timeseries for a date range and stores it partitioned by year and month in a CSV")
@@ -16,4 +16,5 @@ def download(ctx, output, start, end):
     ctx.log("Starting to download GOES timeseries...")
     ctx.vlog(
         f"with options: target dir {output}, between {start} and {end}")
-    fetch_goes_metadata(start, end, output)
+    goes_cache = GOESCache(output)
+    goes_cache.fetch_goes_metadata(start, end, output)
