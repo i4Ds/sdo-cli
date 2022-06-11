@@ -39,6 +39,8 @@ class NpEncoder(json.JSONEncoder):
             return float(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        if isinstance(obj, pd.Timestamp):
+            return str(obj)
         return super(NpEncoder, self).default(obj)
 
 
@@ -120,7 +122,7 @@ class HEKEventManager():
                     hpc_coord=event["hpc_coord"],
                     # https://www.compose.com/articles/using-json-extensions-in-postgresql-from-python-2/
                     # https://amercader.net/blog/beware-of-json-fields-in-sqlalchemy/
-                    full_event=full_event_json)
+                    full_event=json.loads(full_event_json))
 
                 update_dict = {
                     c.name: c for c in insert_statement.excluded if not c.primary_key}

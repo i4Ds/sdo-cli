@@ -23,15 +23,19 @@ hmi_channels = ['Bx', 'By', 'Bz']
 class SDOMLv2NumpyDataset(Dataset):
     def __init__(
             self,
-            storage_root,
-            storage_driver,
-            n_items,
-            year,
-            channel,
-            start,
-            end,
-            freq,
-            transforms):
+            storage_root: str,
+            storage_driver: str,
+            n_items: int,
+            year: str,
+            channel: str,
+            start: str,
+            end: str,
+            freq: str,
+            irradiance: float,
+            irradiance_channel: str,
+            goes_cache_dir: str,
+            transforms: list,
+            cache_max_size: int):
         """Dataset which loads the SDO Ml v2 dataset from a zarr directory.
         """
 
@@ -45,7 +49,8 @@ class SDOMLv2NumpyDataset(Dataset):
         else:
             raise f"storage driver {storage_driver} not supported"
 
-        root = zarr.group(store)
+        cache = zarr.LRUStoreCache(store, max_size=cache_max_size)
+        root = zarr.group(store=cache)
         print("discovered the following zarr directory structure")
         print(root.tree())
 
@@ -85,7 +90,7 @@ class SDOMLv2NumpyDataset(Dataset):
             all_images = da.from_array(data)[time_index, :, :]
             attrs = {keys: [values[idx] for idx in time_index]
                      for keys, values in data.attrs.items()}
-        elif start != None or end != None:
+        elif start is not None or end is not None:
             # filter dates
             print(
                 f"filtering data between {start} and {end}")
@@ -100,10 +105,10 @@ class SDOMLv2NumpyDataset(Dataset):
             df_time["Time"] = pd.to_datetime(
                 df_time["Time"], format=format, utc=True)
 
-            if start != None and end != None:
+            if start is not None and end is not None:
                 filter = (df_time['Time'] >= start) & (
                     df_time['Time'] <= end)
-            elif start != None:
+            elif start is not None:
                 filter = (df_time['Time'] >= start)
             else:
                 filter = (df_time['Time'] <= end)
@@ -116,6 +121,32 @@ class SDOMLv2NumpyDataset(Dataset):
             # all data should be used
             attrs = data.attrs
             all_images = da.from_array(data)
+
+        if irradiance is not None:
+            from sdo.data_loader.goes.cache import GOESCache
+            goes_cache = GOESCache(goes_cache_dir)
+            t_obs = np.array(attrs["T_OBS"])
+            df_time = pd.DataFrame(t_obs, index=np.arange(
+                np.shape(t_obs)[0]), columns=["Time"])
+            format = None
+            if channel in hmi_channels:
+                format = hmi_date_format
+            df_time["Time"] = pd.to_datetime(
+                df_time["Time"], format=format, utc=True)
+            for i in range(len(df_time.index)):
+                ts = df_time.loc[i]["Time"]
+                try:
+                    goes_at = goes_cache.get_goes_at(ts.replace(tzinfo=None))
+                except ValueError:
+                    goes_at = {"xrsa": np.nan, "xrsb": np.nan}
+
+                df_time.loc[i, 'xrsa'] = goes_at["xrsa"]
+                df_time.loc[i, 'xrsb'] = goes_at["xrsb"]
+            irr_filter = (df_time[irradiance_channel] <= irradiance)
+            irr_index = df_time['Time'].index[irr_filter].tolist()
+            all_images = all_images[irr_index, :, :]
+            attrs = {keys: [values[idx] for idx in irr_index]
+                     for keys, values in attrs.items()}
 
         self.transforms = transforms
         self.all_images = all_images
@@ -245,6 +276,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  drop_last: bool = False,
+                 prefetch_factor: int = 8,
+                 cache_max_size: int = 2*1024*1024*2014,
                  target_size: int = 256,
                  channel: str = "171A",
                  year: str = "2010",
@@ -253,6 +286,9 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  test_start=None,
                  test_end=None,
                  freq=None,
+                 irradiance: float = None,
+                 irradiance_channel: str = "xrsb",
+                 goes_cache_dir: str = None,
                  shuffle: bool = False,
                  train_val_split_strategy: str = "temporal",
                  train_val_split_ratio: float = 0.7,
@@ -276,6 +312,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
             num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
             drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
+            cache_max_size (int, optional): The maximum size that the cache may grow to, in number of bytes. Defaults to 2GB.
             target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 256.
             channel (str, optional): [Channel name that should be used. If None all available channels will be used.]. Defaults to "171A".
             year (str, optional): [Allows to prefilter the dataset by year. If None all available years will be used.]. Defaults to "2010".
@@ -284,11 +321,15 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             test_start (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             test_end (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel. When using freq, start and end should also be specified for train and test]. Defaults to None.
+            irradiance (float, optional): Allows to filter by irradiance (all images with smaller or equal values will be in the resulting dataset). Defaults to None.
+            irradiance_channel (str, optional): Either xrsa or xrsb. Refer to the GOES documentation. Defaults to "xrsb".
+            goes_cache_dir (str, optional): Path to the cached GOES values (downloaded with sdo-cli goes download --help). Defaults to None.
             shuffle (bool, optional): [See pytorch DataLoader]. Defaults to False.
             train_val_split_strategy (str, optional): [Strategy for the train-validation split. Either 'temporal' or 'random']. Defaults to "temporal".
             train_val_split_ratio (float, optional): [Split-ratio for the train-validation split]. Defaults to 0.7.
             train_val_split_temporal_chunk_size (str, optional): [Temporal chunks for the train-validation splits]. Defaults to "14d".
         """
+
         super().__init__()
 
         transforms = get_default_transforms(
@@ -297,10 +338,14 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         dataset = SDOMLv2NumpyDataset(
             storage_root=storage_root,
             storage_driver=storage_driver,
+            cache_max_size=cache_max_size,
             year=year,
             start=train_start,
             end=train_end,
             freq=freq,
+            irradiance=irradiance,
+            irradiance_channel=irradiance_channel,
+            goes_cache_dir=goes_cache_dir,
             n_items=n_items,
             channel=channel,
             transforms=transforms,
@@ -309,10 +354,14 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         self.dataset_test = SDOMLv2NumpyDataset(
             storage_root=storage_root,
             storage_driver=storage_driver,
+            cache_max_size=cache_max_size,
             year=year,
             start=test_start,
             end=test_end,
             freq=freq,
+            irradiance=irradiance,
+            irradiance_channel=irradiance_channel,
+            goes_cache_dir=goes_cache_dir,
             n_items=n_items,
             channel=channel,
             transforms=transforms,
@@ -334,6 +383,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.drop_last = drop_last
         self.shuffle = shuffle
+        self.prefetch_factor = prefetch_factor
 
     def train_dataloader(self):
         return DataLoader(self.dataset_train, batch_size=self.batch_size,
@@ -341,6 +391,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_train))
 
     def val_dataloader(self):
@@ -349,6 +400,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_val))
 
     def test_dataloader(self):
@@ -357,15 +409,16 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
+                          prefetch_factor=self.prefetch_factor,
                           sampler=SequenceInChunkSampler(self.dataset_test))
 
     def predict_dataloader(self):
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
-                          shuffle=self.shuffle,
+                          shuffle=False,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
-                          sampler=SequenceInChunkSampler(self.dataset_test))
+                          prefetch_factor=self.prefetch_factor)
 
 
 def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temporal_chunk_size="14d",

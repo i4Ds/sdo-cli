@@ -1,10 +1,13 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
 # https://towardsdatascience.com/variational-autoencoder-demystified-with-pytorch-implementation-3a06bee395ed
+import json
+from dateutil.parser import parse
 import datetime
 import os
 import sys
 from math import ceil
 from pathlib import Path
+import logging
 
 import numpy as np
 import pytorch_lightning as pl
@@ -20,13 +23,15 @@ from sdo.sood.data.sdo_ml_v1_dataset import SDOMLv1DataModule
 from sdo.sood.data.sdo_ml_v2_dataset import SDOMLv2DataModule
 from sdo.sood.models.aes import VAE
 from sdo.sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
-from sdo.sood.util.utils import (get_smooth_image_gradient, save_image_grid,
+from sdo.sood.util.utils import (get_smooth_image_gradient, read_config,
                                  tensor_to_image)
 from torch import optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
 from torchvision.utils import save_image
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 class ceVAE(pl.LightningModule):
@@ -61,7 +66,8 @@ class ceVAE(pl.LightningModule):
         self.model = VAE(
             input_size=input_shape[1:], z_dim=z_dim, fmap_sizes=model_feature_map_sizes)
 
-        self.save_hyperparameters()
+        # already saved via config
+        # self.save_hyperparameters()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
@@ -100,10 +106,8 @@ class ceVAE(pl.LightningModule):
                 n_squares=(0, 3),
             )
             ce_tensor = torch.from_numpy(ce_tensor).float()
-            ce_tensor = ce_tensor.to(self.device)
+            ce_tensor = ce_tensor.type_as(x)
             inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
-
-            inpt_noisy = inpt_noisy.to(self.device)
             x_rec_ce, _ = self.model(inpt_noisy)
             rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
             loss_ce = rec_loss_ce
@@ -356,105 +360,109 @@ class ceVAE(pl.LightningModule):
         return (1.0 - alpha) * new + alpha * old
 
 
+folder_time_format = "%Y%m%d-%H%M%S"
+
+
 def main(
-    mode="pixel",
-    run="train",
-    target_size=128,
-    batch_size=16,
-    n_epochs=20,
-    lr=1e-4,
-    z_dim=128,
-    fmap_sizes=(16, 64, 256, 1024),
-    use_geco=False,
-    beta=0.01,
-    ce_factor=0.5,
-    score_mode="rec",
-    print_every_iter=100,
-    load_path=None,
-    log_dir=None,
-    test_dir=None,
-    pred_dir=None,
-    data_dir=None,
-    dataset="CuratedImageParameterDataset",
-    num_data_loader_workers=0
+    run: str = "train",
+    config_file: Path = Path("./config/defaults.yaml")
 ):
-    folder_time_format = "%Y%m%d-%H%M%S"
+    config = read_config(config_file)
+    logger.info("found config")
+    logger.info(json.dumps(config, indent=2))
+
     work_dir = Path(
-        log_dir) / Path(f"{datetime.datetime.now().strftime(folder_time_format)}_cevae")
+        config.log_dir.value) / Path(f"{datetime.datetime.now().strftime(folder_time_format)}_cevae")
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
 
-    input_shape = (batch_size, 1, target_size, target_size)
+    input_shape = (config.data.batch_size.value, 1,
+                   config.model.target_size.value, config.model.target_size.value)
 
-    if load_path is not None:
+    if config.model.load_path.value is not None:
         cevae_algo = ceVAE.load_from_checkpoint(
-            load_path, mode=mode)
+            config.model.load_path.value, mode=config.predict.mode.value)
     else:
         cevae_algo = ceVAE(
             input_shape,
-            lr=lr,
-            z_dim=z_dim,
-            model_feature_map_sizes=fmap_sizes,
-            use_geco=use_geco,
-            beta=beta,
-            ce_factor=ce_factor,
-            score_mode=score_mode,
-            mode=mode,
-            print_every_iter=print_every_iter
+            lr=config.train.lr.value,
+            z_dim=config.model.z_dim.value,
+            model_feature_map_sizes=config.model.fmap_sizes.value,
+            use_geco=config.train.use_geco.value,
+            beta=config.train.beta.value,
+            ce_factor=config.model.ce_factor.value,
+            score_mode=config.predict.score_mode.value,
+            mode=config.predict.mode.value,
+            print_every_iter=config.train.print_every_iter.value
         )
 
     data_module = None
     train_loader = None
     val_loader = None
     if run == "train":
-        if dataset == "CuratedImageParameterDataset":
+        if config.data.dataset.value == "CuratedImageParameterDataset":
             train_loader = get_dataset(
-                base_dir=data_dir,
-                num_workers=num_data_loader_workers,
+                base_dir=config.data.data_dir.value,
+                num_workers=config.data.num_data_loader_workers.value,
                 pin_memory=False,
-                batch_size=batch_size,
+                batch_size=config.data.batch_size.value,
                 mode="train",
                 target_size=input_shape[2],
             )
             val_loader = get_dataset(
-                base_dir=data_dir,
-                num_workers=num_data_loader_workers,
+                base_dir=config.data.data_dir.value,
+                num_workers=config.data.num_data_loader_workers.value,
                 pin_memory=False,
-                batch_size=batch_size,
+                batch_size=config.data.batch_size.value,
                 mode="val",
                 target_size=input_shape[2],
             )
-        elif dataset == "SDOMLDatasetV1" or dataset == "SDOMLDatasetV2":
+        elif config.data.dataset.value == "SDOMLDatasetV1" or config.data.dataset.value == "SDOMLDatasetV2":
 
-            if dataset == "SDOMLDatasetV1":
+            if config.data.dataset.value == "SDOMLDatasetV1":
                 # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
-                data_module = SDOMLv1DataModule(base_dir=data_dir,
-                                                num_workers=num_data_loader_workers,
+                data_module = SDOMLv1DataModule(base_dir=config.data.data_dir.value,
+                                                num_workers=config.data.num_data_loader_workers.value,
                                                 pin_memory=False,
-                                                batch_size=batch_size,
+                                                batch_size=config.data.batch_size.value,
                                                 channel="171",
                                                 target_size=input_shape[2])
-            elif dataset == "SDOMLDatasetV2":
-                data_module = SDOMLv2DataModule(storage_root=data_dir,
-                                                storage_driver="fs",
-                                                num_workers=num_data_loader_workers,
-                                                pin_memory=False,
-                                                batch_size=batch_size,
+            elif config.data.dataset.value == "SDOMLDatasetV2":
+                data_module = SDOMLv2DataModule(storage_root=config.data.data_dir.value,
+                                                storage_driver=config.data.sdo_ml_v2.storage_driver.value,
+                                                num_workers=config.data.num_data_loader_workers.value,
+                                                pin_memory=config.data.pin_memory.value,
+                                                batch_size=config.data.batch_size.value,
+                                                prefetch_factor=config.data.prefetch_factor.value,
                                                 channel="171A",
-                                                target_size=input_shape[2])
+                                                year="2010",
+                                                target_size=input_shape[2],
+                                                train_start=config.data.sdo_ml_v2.train_start_date.value,
+                                                train_end=config.data.sdo_ml_v2.train_end_date.value,
+                                                test_start=config.data.sdo_ml_v2.test_start_date.value,
+                                                test_end=config.data.sdo_ml_v2.test_end_date.value,
+                                                train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
+                                                train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value)
 
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
+        wandb_logger.experiment.config.update(config)
+
+        from pytorch_lightning.profiler import PyTorchProfiler
         trainer = pl.Trainer(logger=wandb_logger,
-                             max_epochs=n_epochs,
+                             max_epochs=config.train.n_epochs.value,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
-                             # distributed training does not yet work because the lamdbda cannot be pickled
+                             # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=1,
+                             # TODO disable
+                             profiler=PyTorchProfiler(
+                                 dirpath=work_dir,
+                                 filename="output.profile", record_shapes=True),
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[
                                  ModelSummary(max_depth=4),
                                  EarlyStopping(
-                                     monitor="val_loss", mode="min"),
+                                     monitor="val_loss", mode="min", patience=10),
                                  ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")])
         # TODO log_graph does not work when running on multiple GPUs
         # # AttributeError: Can't pickle local object 'TorchGraph.create_forward_hook.<locals>.after_forward_hook'
@@ -468,31 +476,67 @@ def main(
 
     if run == "predict":
         cevae_algo.eval()
-        if pred_dir is None and work_dir is not None:
-            pred_dir = os.path.join(work_dir, "predictions")
-            os.makedirs(pred_dir, exist_ok=True)
+        pred_dir = config.predict.pred_dir.value
+        if pred_dir is None:
+            pred_dir = work_dir / Path("predictions")
         elif pred_dir is None and work_dir is None:
             print("Please either provide a log/output dir or a prediction dir")
             sys.exit(0)
 
-        # TODO use same transforms as during training
-        transforms = Compose([Resize((target_size, target_size)),
-                              Grayscale(num_output_channels=1), ToTensor()])
-        data_set = ImageFolderWithPaths(test_dir, transforms)
-        data_loader = DataLoader(data_set,
-                                 batch_size=1,
-                                 shuffle=False,
-                                 num_workers=1)
-        for index, (img, label, path) in tqdm(enumerate(data_loader)):
-            img = img[0]
-            path = Path(path[0])
-            if mode == "pixel":
-                file_name = os.path.join(pred_dir, path.name)
-                pixel_scores = cevae_algo.score_pixels(
-                    img, index, file_name)
+        if not os.path.exists(pred_dir):
+            os.makedirs(pred_dir, exist_ok=True)
 
-            if mode == "sample":
-                sample_score = cevae_algo.score_sample(img)
+        if config.data.dataset.value == "CuratedImageParameterDataset":
+            # TODO use same transforms as during training
+            transforms = Compose([Resize((config.model.target_size.value, config.model.target_size.value)),
+                                  Grayscale(num_output_channels=1), ToTensor()])
+            data_set = ImageFolderWithPaths(config.data.data_dir, transforms)
+            data_loader = DataLoader(data_set,
+                                     batch_size=1,
+                                     shuffle=False,
+                                     num_workers=1)
+        elif config.data.dataset.value == "SDOMLDatasetV1" or config.data.dataset.value == "SDOMLDatasetV2":
+
+            if config.data.dataset.value == "SDOMLDatasetV1":
+                # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
+                data_module = SDOMLv1DataModule(base_dir=config.data.data_dir.value,
+                                                num_workers=config.data.num_data_loader_workers.value,
+                                                pin_memory=False,
+                                                batch_size=1,
+                                                channel="171",
+                                                target_size=input_shape[2])
+            elif config.data.dataset.value == "SDOMLDatasetV2":
+                data_module = SDOMLv2DataModule(storage_root=config.data.data_dir.value,
+                                                storage_driver=config.data.sdo_ml_v2.storage_driver.value,
+                                                num_workers=config.data.num_data_loader_workers.value,
+                                                pin_memory=False,
+                                                batch_size=1,
+                                                prefetch_factor=config.data.prefetch_factor.value,
+                                                channel="171A",
+                                                year="2010",
+                                                target_size=input_shape[2],
+                                                train_start=config.data.sdo_ml_v2.train_start_date.value,
+                                                train_end=config.data.sdo_ml_v2.train_end_date.value,
+                                                test_start=config.data.sdo_ml_v2.test_start_date.value,
+                                                test_end=config.data.sdo_ml_v2.test_end_date.value,
+                                                train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
+                                                train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value)
+                data_loader = data_module.predict_dataloader()
+        for index, batch in tqdm(enumerate(data_loader)):
+            # TODO attrs are not available for ImageParameterDataset
+            img, attrs = batch
+            timestamp = parse(attrs["T_OBS"][0])
+            wavelength = attrs["WAVELNTH"][0]
+            file_name = Path(
+                f"{timestamp.strftime(folder_time_format)}_{wavelength}A.png")
+            file_path = Path(pred_dir) / file_name
+            if config.predict.mode.value == "pixel":
+                pixel_scores = cevae_algo.score_pixels(img[0])
+                # TODO rather normalize over the full dataset
+                save_image(pixel_scores, file_path, normalize=True)
+            if config.predict.mode.value == "sample":
+                # TODO make it work for batches instead of single images
+                sample_score = cevae_algo.score_sample(img[0])
                 with open(os.path.join(pred_dir, "predictions.txt"), "a") as target_file:
-                    target_file.write(path.name + "," +
+                    target_file.write(file_path.name + "," +
                                       str(sample_score) + "\n")

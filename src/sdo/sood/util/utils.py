@@ -1,3 +1,4 @@
+from munch import DefaultMunch
 import json
 import random
 import warnings
@@ -8,6 +9,8 @@ from torchvision.utils import save_image as tv_save_image, make_grid
 import os
 from pathlib import Path
 from PIL import Image
+
+import yaml
 
 
 def get_vanilla_image_gradient(model, inpt, err_fn, abs=False):
@@ -271,3 +274,28 @@ def save_model(model, name, model_dir, n_iter=None, iter_format="{:05d}", prefix
 
     model_file = os.path.join(model_dir, name)
     torch.save(model.state_dict(), model_file)
+
+
+def merge_config(user: dict, default: dict) -> dict:
+    if isinstance(user, dict) and isinstance(default, dict):
+        for k, v in default.items():
+            if k not in user:
+                user[k] = v
+            else:
+                user[k] = merge_config(user[k], v)
+    return user
+
+
+def read_config(config_file: Path) -> dict:
+    config_file = Path(os.path.expanduser(config_file))
+    with open(config_file, "r") as f:
+        user_config = yaml.safe_load(f)
+
+    default_config_file = config_file.parent / Path("defaults.yaml")
+    if os.path.exists(default_config_file):
+        with open(default_config_file, "r") as f:
+            default_config = yaml.safe_load(f)
+            user_config = merge_config(user_config, default_config)
+
+    # Hack to convert dict to object
+    return DefaultMunch.fromDict(user_config)
