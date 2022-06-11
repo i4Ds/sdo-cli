@@ -25,6 +25,11 @@ publish: package
 	( \
 		source .venv/bin/activate; \
 		python -m twine upload --verbose -r pypi dist/*; \
+		VERSION=$$(python setup.py --version); \
+		echo $${VERSION}; \
+		git tag $${VERSION}; \
+		git push origin --tags; \
+		gh release create $${VERSION} --generate-notes; \
 	)
 
 dev: 
