@@ -135,7 +135,11 @@ class SDOMLv2NumpyDataset(Dataset):
                 df_time["Time"], format=format, utc=True)
             for i in range(len(df_time.index)):
                 ts = df_time.loc[i]["Time"]
-                goes_at = goes_cache.get_goes_at(ts.replace(tzinfo=None))
+                try:
+                    goes_at = goes_cache.get_goes_at(ts.replace(tzinfo=None))
+                except ValueError:
+                    goes_at = {"xrsa": np.nan, "xrsb": np.nan}
+
                 df_time.loc[i, 'xrsa'] = goes_at["xrsa"]
                 df_time.loc[i, 'xrsb'] = goes_at["xrsb"]
             irr_filter = (df_time[irradiance_channel] <= irradiance)

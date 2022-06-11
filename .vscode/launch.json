@@ -13,7 +13,7 @@
       "justMyCode": true
     },
     {
-      "name": "Python: SDO CLI",
+      "name": "Python: SDO CLI get events",
       "type": "python",
       "request": "launch",
       "stopOnEntry": false,
@@ -23,9 +23,9 @@
       "args": [
         "events",
         "get",
-        "--start=2011-08-01T00:00:00",
-        "--end=2011-08-02T23:59:59",
-        "--event-type=AR"
+        "--start=2011-01-01T00:00:00",
+        "--end=2020-12-31T23:59:59",
+        "--event-type=FL"
       ]
     },
     {
@@ -55,8 +55,8 @@
         "goes",
         "download",
         "--start=2010-01-01T00:00:00",
-        "--end=2020-12-30T23:59:59",
-        "--output=./tmp/"
+        "--end=2020-12-31T23:59:59",
+        "--output=./tmp/new"
       ]
     },
     {

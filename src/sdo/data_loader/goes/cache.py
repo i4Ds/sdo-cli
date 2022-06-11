@@ -1,5 +1,6 @@
 
 from datetime import timedelta
+from multiprocessing.sharedctypes import Value
 from dateutil import parser
 import dask.dataframe as dd
 import numpy as np
@@ -173,6 +174,7 @@ class GOESCache:
         if self.ddf_cached is None:
             ddf = dd.read_parquet(self.parquet_dir, engine="pyarrow",
                                   calculate_divisions=True)
+            ddf = ddf[(ddf["quality_xrsb"] == 0)]
             self.ddf_cached = ddf
         else:
             ddf = self.ddf_cached
@@ -184,7 +186,7 @@ class GOESCache:
 
         result = ddf.loc[search_dt_start:search_dt_end].compute()
         if result.size == 0:
-            raise Exception(
+            raise ValueError(
                 f"no goes value found at {at} within +/- {max_diff}")
         result.reset_index(inplace=True)
         idx = result.timestamp.subtract(at).abs().idxmin()
