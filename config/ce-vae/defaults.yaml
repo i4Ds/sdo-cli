@@ -44,7 +44,7 @@ data:
       value: "171A"
       desc: "Allows to filter the dataset by channel. If None all available channels will be used."
     train_year:
-      value: 2010
+      value: "2010"
       desc: "Allows to prefilter the dataset by year. If None all available years will be used."
     train_start_date:
       value: "2010-08-30 00:00:00"
@@ -53,7 +53,7 @@ data:
       value: "2010-08-30 23:59:59"
       desc: "Allows to restrict the dataset temporally"
     test_year:
-      value: 2010
+      value: "2010"
       desc: "Allows to prefilter the dataset by year. If None all available years will be used."
     test_start_date:
       value: "2010-08-29 00:00:00"
@@ -105,6 +105,9 @@ train:
   profile:
     value: false
     desc: "Whether to profile the training run (only for debugging)"
+  early_stopping:
+    value: true
+    desc: "Whether to enable early stopping"
 log_dir:
   value: "./output/logs"
   desc: "Output directory for log."

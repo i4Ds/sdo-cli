@@ -21,7 +21,7 @@ data:
       value: null
     train_end_date:
       value: null
-    train_year:
+    test_year:
       value:
         - "2012"
     test_start_date:

@@ -460,6 +460,12 @@ def main(
                 #  filename="output.profile",
                 record_shapes=True)
 
+        callbacks = [
+            ModelSummary(max_depth=4),
+            ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")]
+        if config.train.early_stopping.value == True:
+            callbacks.append(EarlyStopping(
+                monitor="val_loss", mode="min", patience=10))
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=config.train.n_epochs.value,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
@@ -468,11 +474,7 @@ def main(
                              profiler=profiler,
                              accelerator="auto",
                              default_root_dir=work_dir,
-                             callbacks=[
-                                 ModelSummary(max_depth=4),
-                                 EarlyStopping(
-                                     monitor="val_loss", mode="min", patience=10),
-                                 ModelCheckpoint(monitor="val_loss", dirpath=work_dir / Path("checkpoint"), filename="cevae-{epoch:02d}-{val_loss:.2f}")])
+                             callbacks=callbacks)
         # TODO log_graph does not work when running on multiple GPUs
         # # AttributeError: Can't pickle local object 'TorchGraph.create_forward_hook.<locals>.after_forward_hook'
         wandb_logger.watch(cevae_algo, log_graph=False)
