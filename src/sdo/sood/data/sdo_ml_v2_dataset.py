@@ -13,7 +13,8 @@ import pytorch_lightning as pl
 import zarr
 import pandas as pd
 import dask.array as da
-
+from typing import Union
+from collections import defaultdict
 from sdo.sood.data.chunk_sampler import SequenceInChunkSampler
 
 hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
@@ -26,10 +27,10 @@ class SDOMLv2NumpyDataset(Dataset):
             storage_root: str,
             storage_driver: str,
             n_items: int,
-            year: str,
+            year: Union[str, list],
             channel: str,
-            start: str,
-            end: str,
+            start: Union[str, list],
+            end:  Union[str, list],
             freq: str,
             irradiance: float,
             irradiance_channel: str,
@@ -41,7 +42,6 @@ class SDOMLv2NumpyDataset(Dataset):
 
         if storage_driver == "gcs":
             import gcsfs
-
             gcs = gcsfs.GCSFileSystem(access="read_only")
             store = gcsfs.GCSMap(storage_root, gcs=gcs, check=False)
         elif storage_driver == "fs":
@@ -50,107 +50,59 @@ class SDOMLv2NumpyDataset(Dataset):
             raise f"storage driver {storage_driver} not supported"
 
         cache = zarr.LRUStoreCache(store, max_size=cache_max_size)
-        root = zarr.group(store=cache)
+        root = zarr.open(store=cache, mode='r')
         print("discovered the following zarr directory structure")
         print(root.tree())
 
         if year:
-            by_year = root[year]
+            if type(year) == str:
+                by_year = [root[year]]
+            elif type(year) == list:
+                # TODO this can return None
+                by_year = [root.get(y) for y in year]
+            else:
+                raise ValueError(
+                    f"type {type(year)} not supported for argument year, use str or list[str]")
         else:
-            by_year = root[:]
+            by_year = [group for _, group in root.groups()]
 
         if channel:
-            data = by_year[channel]
-        else:
-            data = by_year[:]
-
-        if freq:
-            # temporal downsampling
-            print(
-                f"applying temporal downsampling to freq {freq} between {start} and {end}")
-
-            t_obs = np.array(data.attrs["T_OBS"])
-            df_time = pd.DataFrame(t_obs, index=np.arange(
-                np.shape(t_obs)[0]), columns=["Time"])
-            # NOTE for HMI the date format is different 2010.05.01_00:12:04_TAI
-            format = None
-            if channel in hmi_channels:
-                format = hmi_date_format
-            df_time["Time"] = pd.to_datetime(
-                df_time["Time"], format=format, utc=True)
-
-            # select times at a frequency of freq (e.g. 12T)
-            selected_times = pd.date_range(
-                start=start, end=end, freq=freq, tz="UTC"
-            )
-            selected_index = []
-            for i in selected_times:
-                selected_index.append(np.argmin(abs(df_time["Time"] - i)))
-            time_index = [x for x in selected_index if x > 0]
-            all_images = da.from_array(data)[time_index, :, :]
-            attrs = {keys: [values[idx] for idx in time_index]
-                     for keys, values in data.attrs.items()}
-        elif start is not None or end is not None:
-            # filter dates
-            print(
-                f"filtering data between {start} and {end}")
-
-            t_obs = np.array(data.attrs["T_OBS"])
-            df_time = pd.DataFrame(t_obs, index=np.arange(
-                np.shape(t_obs)[0]), columns=["Time"])
-            # NOTE for HMI the date format is different 2010.05.01_00:12:04_TAI
-            format = None
-            if channel in hmi_channels:
-                format = hmi_date_format
-            df_time["Time"] = pd.to_datetime(
-                df_time["Time"], format=format, utc=True)
-
-            if start is not None and end is not None:
-                filter = (df_time['Time'] >= start) & (
-                    df_time['Time'] <= end)
-            elif start is not None:
-                filter = (df_time['Time'] >= start)
+            if type(channel) == str:
+                data = [group.get(channel) for group in by_year]
             else:
-                filter = (df_time['Time'] <= end)
-
-            time_index = df_time['Time'].index[filter].tolist()
-            all_images = da.from_array(data)[time_index, :, :]
-            attrs = {keys: [values[idx] for idx in time_index]
-                     for keys, values in data.attrs.items()}
+                raise ValueError(
+                    f"type {type(channel)} not supported for argument channel, use str or list[str]")
         else:
-            # all data should be used
-            attrs = data.attrs
-            all_images = da.from_array(data)
+            data = [g for y in by_year for _, g in y.arrays()]
 
-        if irradiance is not None:
-            from sdo.data_loader.goes.cache import GOESCache
-            goes_cache = GOESCache(goes_cache_dir)
-            t_obs = np.array(attrs["T_OBS"])
-            df_time = pd.DataFrame(t_obs, index=np.arange(
-                np.shape(t_obs)[0]), columns=["Time"])
-            format = None
-            if channel in hmi_channels:
-                format = hmi_date_format
-            df_time["Time"] = pd.to_datetime(
-                df_time["Time"], format=format, utc=True)
-            for i in range(len(df_time.index)):
-                ts = df_time.loc[i]["Time"]
-                try:
-                    goes_at = goes_cache.get_goes_at(ts.replace(tzinfo=None))
-                except ValueError:
-                    goes_at = {"xrsa": np.nan, "xrsb": np.nan}
+        all_images = []
+        all_attrs = []
+        for arr in data:
+            if freq:
+                images, attrs = self.temporal_downsampling(
+                    channel, start, end, freq, arr)
+            elif start is not None or end is not None:
+                images, attrs = self.temporal_filtering(
+                    channel, start, end, arr)
+            else:
+                # all data should be used
+                attrs = arr.attrs
+                images = da.from_array(arr)
 
-                df_time.loc[i, 'xrsa'] = goes_at["xrsa"]
-                df_time.loc[i, 'xrsb'] = goes_at["xrsb"]
-            irr_filter = (df_time[irradiance_channel] <= irradiance)
-            irr_index = df_time['Time'].index[irr_filter].tolist()
-            all_images = all_images[irr_index, :, :]
-            attrs = {keys: [values[idx] for idx in irr_index]
-                     for keys, values in attrs.items()}
+            if irradiance is not None:
+                images, attrs = self.irradiance_filtering(
+                    channel, irradiance, irradiance_channel, goes_cache_dir, arr, images)
+            all_images.append(images)
+            all_attrs.append(attrs)
 
         self.transforms = transforms
-        self.all_images = all_images
-        self.attrs = attrs
+        self.all_images = da.concatenate(all_images, axis=0)
+
+        merged_attrs = defaultdict(list)
+        for attrs in all_attrs:
+            for key, value in attrs.items():
+                merged_attrs[key].extend(value)
+        self.attrs = merged_attrs
         self.channel = channel
 
         self.data_len = len(self.all_images)
@@ -160,6 +112,79 @@ class SDOMLv2NumpyDataset(Dataset):
             self.n_items = self.data_len
         else:
             self.n_items = int(n_items)
+
+    def irradiance_filtering(self, channel, irradiance, irradiance_channel, goes_cache_dir, data, all_images):
+        from sdo.data_loader.goes.cache import GOESCache
+        goes_cache = GOESCache(goes_cache_dir)
+        df_time = self.obs_time_as_df(channel, data)
+        for i in range(len(df_time.index)):
+            ts = df_time.loc[i]["Time"]
+            try:
+                goes_at = goes_cache.get_goes_at(ts.replace(tzinfo=None))
+            except ValueError:
+                goes_at = {"xrsa": np.nan, "xrsb": np.nan}
+
+            df_time.loc[i, 'xrsa'] = goes_at["xrsa"]
+            df_time.loc[i, 'xrsb'] = goes_at["xrsb"]
+        irr_filter = (df_time[irradiance_channel] <= irradiance)
+        irr_index = df_time['Time'].index[irr_filter].tolist()
+        all_images = all_images[irr_index, :, :]
+        attrs = {keys: [values[idx] for idx in irr_index]
+                 for keys, values in attrs.items()}
+
+        return all_images, attrs
+
+    def temporal_filtering(self, channel, start, end, data):
+        print(
+            f"filtering data between {start} and {end}")
+
+        df_time = self.obs_time_as_df(channel, data)
+
+        if start is not None and end is not None:
+            filter = (df_time['Time'] >= start) & (
+                df_time['Time'] <= end)
+        elif start is not None:
+            filter = (df_time['Time'] >= start)
+        else:
+            filter = (df_time['Time'] <= end)
+
+        time_index = df_time['Time'].index[filter].tolist()
+        all_images = da.from_array(data)[time_index, :, :]
+        attrs = {keys: [values[idx] for idx in time_index]
+                 for keys, values in data.attrs.items()}
+        return all_images, attrs
+
+    def temporal_downsampling(self, channel, start, end, freq, data):
+        print(
+            f"applying temporal downsampling to freq {freq} between {start} and {end}")
+
+        df_time = self.obs_time_as_df(channel, data)
+
+        # select times at a frequency of freq (e.g. 12T)
+        selected_times = pd.date_range(
+            start=start, end=end, freq=freq, tz="UTC"
+        )
+        selected_index = []
+        for i in selected_times:
+            selected_index.append(np.argmin(abs(df_time["Time"] - i)))
+        time_index = [x for x in selected_index if x > 0]
+        all_images = da.from_array(data)[time_index, :, :]
+        attrs = {keys: [values[idx] for idx in time_index]
+                 for keys, values in data.attrs.items()}
+        return all_images, attrs
+
+    def obs_time_as_df(self, channel, data):
+        t_obs = np.array(data.attrs["T_OBS"])
+        df_time = pd.DataFrame(t_obs, index=np.arange(
+            np.shape(t_obs)[0]), columns=["Time"])
+        # NOTE for HMI the date format is different 2010.05.01_00:12:04_TAI
+        format = None
+        if channel in hmi_channels:
+            format = hmi_date_format
+        df_time["Time"] = pd.to_datetime(
+            df_time["Time"], format=format, utc=True)
+
+        return df_time
 
     def __len__(self):
         return self.n_items
@@ -172,7 +197,7 @@ class SDOMLv2NumpyDataset(Dataset):
         image = self.all_images[idx, :, :]
 
         attrs = dict([(key, self.attrs[key][idx])
-                     for key in self.attrs.keys()])
+                      for key in self.attrs.keys()])
 
         # Pytorch does not support NoneType items
         attrs = {k: v for k, v in attrs.items() if v is not None}
@@ -280,9 +305,10 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  cache_max_size: int = 2*1024*1024*2014,
                  target_size: int = 256,
                  channel: str = "171A",
-                 year: str = "2010",
+                 train_year: Union[str, list] = "2010",
                  train_start=None,
                  train_end=None,
+                 test_year: Union[str, list] = "2010",
                  test_start=None,
                  test_end=None,
                  freq=None,
@@ -307,7 +333,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             storage_root (str): [Root path containing the zarr archives]
             storage_driver(str, optional): [Storage driver used to load the data. Either 'gcs' (Google Storage Bucket) or 'fs' (local file system)]. Defaults to gcs.
             batch_size (int, optional): [See pytorch DataLoader]. Defaults to 16.
-            n_items (int, optional): [Number of items in the dataset, by default number of files in the loaded set 
+            n_items (int, optional): [Number of items in the dataset, by default number of files in the loaded set
                                             but can be smaller (uses subset) or larger (uses files multiple times)]. Defaults to None.
             pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
             num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
@@ -315,9 +341,10 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             cache_max_size (int, optional): The maximum size that the cache may grow to, in number of bytes. Defaults to 2GB.
             target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 256.
             channel (str, optional): [Channel name that should be used. If None all available channels will be used.]. Defaults to "171A".
-            year (str, optional): [Allows to prefilter the dataset by year. If None all available years will be used.]. Defaults to "2010".
+            train_year (str|list[str], optional): [Allows to prefilter the dataset by year. Can be a string or list of strings. If None all available years will be used.]. Defaults to "2010".
             train_start (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             train_end (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
+            test_year (str|list[str], optional): [Allows to prefilter the dataset by year. Can be a string or list of strings. If None all available years will be used.]. Defaults to "2010".
             test_start (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             test_end (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel. When using freq, start and end should also be specified for train and test]. Defaults to None.
@@ -339,7 +366,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             storage_root=storage_root,
             storage_driver=storage_driver,
             cache_max_size=cache_max_size,
-            year=year,
+            year=train_year,
             start=train_start,
             end=train_end,
             freq=freq,
@@ -355,7 +382,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             storage_root=storage_root,
             storage_driver=storage_driver,
             cache_max_size=cache_max_size,
-            year=year,
+            year=test_year,
             start=test_start,
             end=test_end,
             freq=freq,

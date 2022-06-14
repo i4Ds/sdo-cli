@@ -294,7 +294,7 @@ class ceVAE(pl.LightningModule):
 
         target_tensor = from_transforms(target_tensor[None])[0]
         # TODO rather normalize over the whole dataset rather than a single image
-        #save_image(target_tensor, file_name, normalize=True)
+        # save_image(target_tensor, file_name, normalize=True)
 
         return target_tensor
 
@@ -418,9 +418,8 @@ def main(
                 target_size=input_shape[2],
             )
         elif config.data.dataset.value == "SDOMLDatasetV1" or config.data.dataset.value == "SDOMLDatasetV2":
-
             if config.data.dataset.value == "SDOMLDatasetV1":
-                # due to a bug on Mac, num processes needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
+                # NOTE due to a bug on Mac, num_workers needs to be 0: https://github.com/pyg-team/pytorch_geometric/issues/366
                 data_module = SDOMLv1DataModule(base_dir=config.data.data_dir.value,
                                                 num_workers=config.data.num_data_loader_workers.value,
                                                 pin_memory=False,
@@ -434,11 +433,15 @@ def main(
                                                 pin_memory=config.data.pin_memory.value,
                                                 batch_size=config.data.batch_size.value,
                                                 prefetch_factor=config.data.prefetch_factor.value,
-                                                channel="171A",
-                                                year="2010",
+                                                channel=config.data.sdo_ml_v2.channel.value,
+                                                freq=config.data.sdo_ml_v2.freq.value,
+                                                irradiance=config.data.sdo_ml_v2.irradiance.value,
+                                                goes_cache_dir=config.data.sdo_ml_v2.goes_cache_dir.value,
                                                 target_size=input_shape[2],
+                                                train_year=config.data.sdo_ml_v2.train_year.value,
                                                 train_start=config.data.sdo_ml_v2.train_start_date.value,
                                                 train_end=config.data.sdo_ml_v2.train_end_date.value,
+                                                test_year=config.data.sdo_ml_v2.test_year.value,
                                                 test_start=config.data.sdo_ml_v2.test_start_date.value,
                                                 test_end=config.data.sdo_ml_v2.test_end_date.value,
                                                 train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
@@ -447,19 +450,22 @@ def main(
         wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
         wandb_logger.experiment.config.update(config)
 
-        from pytorch_lightning.profiler import PyTorchProfiler
+        profiler = None
+        if config.train.profile.value == True:
+            # https://pytorch-lightning.readthedocs.io/en/stable/advanced/profiler.html
+            # https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html
+            from pytorch_lightning.profiler import PyTorchProfiler
+            profiler = PyTorchProfiler(
+                #  dirpath=work_dir,
+                #  filename="output.profile",
+                record_shapes=True)
+
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=config.train.n_epochs.value,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=1,
-                             # TODO disable
-                             # https://pytorch-lightning.readthedocs.io/en/stable/advanced/profiler.html
-                             # https://pytorch.org/tutorials/recipes/recipes/profiler_recipe.html
-                             profiler=PyTorchProfiler(
-                                 #  dirpath=work_dir,
-                                 #  filename="output.profile",
-                                 record_shapes=True),
+                             profiler=profiler,
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=[

@@ -40,7 +40,10 @@ data:
     storage_driver:
       value: fs
       desc: "Storage driver used to load the data. Either 'gcs' (Google Storage Bucket) or 'fs' (local file system)"
-    year:
+    channel:
+      value: "171A"
+      desc: "Allows to filter the dataset by channel. If None all available channels will be used."
+    train_year:
       value: 2010
       desc: "Allows to prefilter the dataset by year. If None all available years will be used."
     train_start_date:
@@ -49,12 +52,21 @@ data:
     train_end_date:
       value: "2010-08-30 23:59:59"
       desc: "Allows to restrict the dataset temporally"
+    test_year:
+      value: 2010
+      desc: "Allows to prefilter the dataset by year. If None all available years will be used."
     test_start_date:
       value: "2010-08-29 00:00:00"
       desc: "Allows to restrict the dataset temporally"
     test_end_date:
       value: "2010-08-29 23:59:59"
       desc: "Allows to restrict the dataset temporally"
+    irradiance:
+      value: null
+      desc: "Allows to filter by irradiance (all images with smaller or equal values will be in the resulting dataset). Defaults to None."
+    goes_cache_dir:
+      value: null
+      desc: Path to the cached GOES values (downloaded with sdo-cli goes download --help). Defaults to None.
     freq:
       value: null
       desc: "Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel. When using freq, start and end should also be specified for train and test"
@@ -90,6 +102,9 @@ train:
   print_every_iter:
     value: 100
     desc: ""
+  profile:
+    value: false
+    desc: "Whether to profile the training run (only for debugging)"
 log_dir:
   value: "./output/logs"
   desc: "Output directory for log."
