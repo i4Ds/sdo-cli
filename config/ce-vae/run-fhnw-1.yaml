@@ -3,7 +3,7 @@ model:
     value: null
 data:
   data_dir:
-    value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_small/sdomlv2_small.zarr
+    value: /mnt/nas05/astrodata01/astroml_data/sdomlv2.zarr
   dataset:
     value: SDOMLDatasetV2
   num_data_loader_workers:
@@ -13,14 +13,21 @@ data:
   batch_size:
     value: 32
   sdo_ml_v2:
+    train_year:
+      value:
+        - "2010"
+        - "2011"
     train_start_date:
-      value: "2010-08-01 00:00:00"
+      value: null
     train_end_date:
-      value: "2010-08-20 23:59:59"
+      value: null
+    test_year:
+      value:
+        - "2012"
     test_start_date:
-      value: "2010-08-21 00:00:00"
+      value: null
     test_end_date:
-      value: "2010-08-31 23:59:59"
+      value: null
     train_val_split_ratio:
       value: 0.8
     train_val_split_temporal_chunk_size:
