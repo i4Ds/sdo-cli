@@ -66,8 +66,7 @@ class ceVAE(pl.LightningModule):
         self.model = VAE(
             input_size=input_shape[1:], z_dim=z_dim, fmap_sizes=model_feature_map_sizes)
 
-        # already saved via config
-        # self.save_hyperparameters()
+        self.save_hyperparameters()
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
@@ -124,6 +123,9 @@ class ceVAE(pl.LightningModule):
             self.theta = self.geco_beta_update(
                 self.theta, self.vae_loss_ema, g_goal, g_lr, speedup=2)
 
+            self.log('geco_theta', self.theta)
+            self.log('geco_vae_loss_ema', self.vae_loss_ema)
+
         if batch_idx % self.print_every_iter == 0:
             sample_images = []
             if self.ce_factor < 1:
@@ -143,6 +145,7 @@ class ceVAE(pl.LightningModule):
         self.log('train_loss', loss)
         self.log('train_loss_vae', loss_vae)
         self.log('train_loss_ce', loss_ce)
+
         return {"loss": loss, "loss_vae": loss_vae, "loss_ce": loss_ce, "loss_vae_kl": loss_vae_kl, "loss_vae_rec": loss_vae_rec}
 
     def validation_step(self, batch, batch_idx):
@@ -167,7 +170,7 @@ class ceVAE(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        print("test step not defined")
+        logger.warn("test step not defined")
         pass
 
     def forward(self, x):
@@ -447,7 +450,18 @@ def main(
                                                 train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
                                                 train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value)
 
-        wandb_logger = WandbLogger(project="sdo-sood", log_model="all")
+        # config_exclude_keys are already logged from config directly
+        wandb_logger = WandbLogger(
+            project="sdo-sood", log_model="all", config_exclude_keys=["input_shape",
+                                                                      "lr",
+                                                                      "z_dim",
+                                                                      "model_feature_map_sizes",
+                                                                      "use_geco",
+                                                                      "beta",
+                                                                      "ce_factor",
+                                                                      "score_mode",
+                                                                      "mode",
+                                                                      "print_every_iter"])
         wandb_logger.experiment.config.update(config)
 
         profiler = None
@@ -491,7 +505,8 @@ def main(
         if pred_dir is None:
             pred_dir = work_dir / Path("predictions")
         elif pred_dir is None and work_dir is None:
-            print("Please either provide a log/output dir or a prediction dir")
+            logger.error(
+                "Please either provide a log/output dir or a prediction dir")
             sys.exit(0)
 
         if not os.path.exists(pred_dir):
@@ -521,17 +536,18 @@ def main(
                                                 storage_driver=config.data.sdo_ml_v2.storage_driver.value,
                                                 num_workers=config.data.num_data_loader_workers.value,
                                                 pin_memory=False,
+                                                target_size=input_shape[2],
                                                 batch_size=1,
                                                 prefetch_factor=config.data.prefetch_factor.value,
-                                                channel="171A",
-                                                year="2010",
-                                                target_size=input_shape[2],
-                                                train_start=config.data.sdo_ml_v2.train_start_date.value,
-                                                train_end=config.data.sdo_ml_v2.train_end_date.value,
+                                                channel=config.data.sdo_ml_v2.channel.value,
+                                                freq=config.data.sdo_ml_v2.freq.value,
+                                                irradiance=config.data.sdo_ml_v2.irradiance.value,
+                                                goes_cache_dir=config.data.sdo_ml_v2.goes_cache_dir.value,
+                                                test_year=config.data.sdo_ml_v2.test_year.value,
                                                 test_start=config.data.sdo_ml_v2.test_start_date.value,
                                                 test_end=config.data.sdo_ml_v2.test_end_date.value,
-                                                train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
-                                                train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value)
+                                                skip_train_val=True,
+                                                )
                 data_loader = data_module.predict_dataloader()
         for index, batch in tqdm(enumerate(data_loader)):
             # TODO attrs are not available for ImageParameterDataset
