@@ -42,3 +42,5 @@ log_dir:
 train:
   early_stopping:
     value: false
+  use_geco:
+    value: true
