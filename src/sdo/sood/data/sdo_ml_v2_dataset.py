@@ -318,7 +318,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  shuffle: bool = False,
                  train_val_split_strategy: str = "temporal",
                  train_val_split_ratio: float = 0.7,
-                 train_val_split_temporal_chunk_size: str = "14d"
+                 train_val_split_temporal_chunk_size: str = "14d",
+                 skip_train_val: bool = False
                  ):
         """
         Creates a LightningDataModule for the SDO Ml v2 dataset
@@ -355,6 +356,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             train_val_split_strategy (str, optional): [Strategy for the train-validation split. Either 'temporal' or 'random']. Defaults to "temporal".
             train_val_split_ratio (float, optional): [Split-ratio for the train-validation split]. Defaults to 0.7.
             train_val_split_temporal_chunk_size (str, optional): [Temporal chunks for the train-validation splits]. Defaults to "14d".
+            skip_train_val (bool, optional): [Whether to skip loading the train and validation sets]: Defaults to False.
         """
 
         super().__init__()
@@ -362,21 +364,22 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         transforms = get_default_transforms(
             target_size=target_size, channel=channel)
 
-        dataset = SDOMLv2NumpyDataset(
-            storage_root=storage_root,
-            storage_driver=storage_driver,
-            cache_max_size=cache_max_size,
-            year=train_year,
-            start=train_start,
-            end=train_end,
-            freq=freq,
-            irradiance=irradiance,
-            irradiance_channel=irradiance_channel,
-            goes_cache_dir=goes_cache_dir,
-            n_items=n_items,
-            channel=channel,
-            transforms=transforms,
-        )
+        if not skip_train_val:
+            dataset = SDOMLv2NumpyDataset(
+                storage_root=storage_root,
+                storage_driver=storage_driver,
+                cache_max_size=cache_max_size,
+                year=train_year,
+                start=train_start,
+                end=train_end,
+                freq=freq,
+                irradiance=irradiance,
+                irradiance_channel=irradiance_channel,
+                goes_cache_dir=goes_cache_dir,
+                n_items=n_items,
+                channel=channel,
+                transforms=transforms,
+            )
 
         self.dataset_test = SDOMLv2NumpyDataset(
             storage_root=storage_root,
@@ -394,17 +397,17 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             transforms=transforms,
         )
 
-        # TODO investigate the use of a ChunkSampler in order to improve data loading performance https://gist.github.com/wassname/8ae1f64389c2aaceeb84fcd34c3651c3
-        if train_val_split_strategy == "random":
-            num_samples = len(dataset)
-            splits = [int(math.floor(num_samples*train_val_split_ratio)),
-                      int(math.ceil(num_samples * (1 - train_val_split_ratio)))]
-            print(f"splitting datatset with {num_samples} into {splits}")
-            self.dataset_train, self.dataset_val = random_split(
-                dataset, splits)
-        elif train_val_split_strategy == "temporal":
-            self.dataset_train, self.dataset_val = temporal_train_val_split(
-                dataset, split_ratio=train_val_split_ratio, temporal_chunk_size=train_val_split_temporal_chunk_size)
+        if not skip_train_val:
+            if train_val_split_strategy == "random":
+                num_samples = len(dataset)
+                splits = [int(math.floor(num_samples*train_val_split_ratio)),
+                          int(math.ceil(num_samples * (1 - train_val_split_ratio)))]
+                print(f"splitting datatset with {num_samples} into {splits}")
+                self.dataset_train, self.dataset_val = random_split(
+                    dataset, splits)
+            elif train_val_split_strategy == "temporal":
+                self.dataset_train, self.dataset_val = temporal_train_val_split(
+                    dataset, split_ratio=train_val_split_ratio, temporal_chunk_size=train_val_split_temporal_chunk_size)
         self.batch_size = batch_size
         self.pin_memory = pin_memory
         self.num_workers = num_workers

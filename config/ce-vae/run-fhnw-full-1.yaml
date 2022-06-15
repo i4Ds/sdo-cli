@@ -37,7 +37,7 @@ data:
     test_end_date:
       value: null
     train_val_split_ratio:
-      value: 0.8
+      value: 0.95
     train_val_split_temporal_chunk_size:
       value: 14d
 predict:
@@ -47,3 +47,10 @@ predict:
     value: "./output/predictions"
 log_dir:
   value: "./output/train-sdo-ml"
+train:
+  n_epochs:
+    value: 20
+  early_stopping:
+    value: true
+  use_geco:
+    value: true
