@@ -9,7 +9,7 @@ data:
   num_data_loader_workers:
     value: 16
   prefetch_factor:
-    value: 8
+    value: 4
   batch_size:
     value: 32
   sdo_ml_v2:
