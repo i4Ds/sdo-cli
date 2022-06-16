@@ -1,8 +1,6 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
-import warnings
 
 import numpy as np
-import torch
 import torch.nn as nn
 
 

@@ -1,9 +1,7 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
-import numpy as np
 import torch
 import torch.distributions as dist
 import logging
-import sys
 
 from sdo.sood.models.nets import BasicEncoder, BasicGenerator
 
@@ -108,7 +106,7 @@ class VAE(torch.nn.Module):
             else:
                 return x_rec, z_dist
         except Exception as e:
-            np.set_printoptions(threshold=sys.maxsize)
+            torch.set_printoptions(profile="full")
             logger.error(f"could not forward sample {mu}", e)
             raise e
 
