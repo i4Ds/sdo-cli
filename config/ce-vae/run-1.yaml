@@ -1,6 +1,6 @@
 model:
   load_path:
-    value: /Users/mariusgiger/Downloads/model-36tfoo4q.ckpt
+    value: /Users/mariusgiger/Downloads/model-1l9kiqhd.ckpt
 data:
   data_dir:
     value: fdl-sdoml-v2/sdomlv2_small.zarr/
