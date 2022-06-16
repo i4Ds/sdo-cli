@@ -35,12 +35,12 @@ Commands:
   data
   events
   goes
-  sood                                         
+  sood
 ```
 
 **Examples:**
 
-Download images:
+Download images from the Curate Image Parameter Dataset:
 
 ```
 sdo-cli data download --path='./data/aia_171_2012' --start='2012-03-07T00:02:00' --end='2012-03-07T00:40:00' --freq='6min' --wavelength='171'
@@ -66,6 +66,18 @@ docker-compose up
 sdo-cli events get --start="2012-01-01T00:00:00" --end="2012-01-02T23:59:59" --event-type="AR"
 ```
 
+Downloading the GOES timeseries:
+
+```
+sdo-cli goes download --start=2010-01-01T00:00:00 --end=2020-12-31T23:59:59 --output=./tmp/goes
+```
+
+Get GOES value at a specific point in time (requires download beforehand):
+
+```
+sdo-cli goes get --timestamp=2015-06-01T02:20:00 --cache-dir=./tmp/goes
+```
+
 ### SOoD Anomaly Detection
 
 The `sood` command implements a Solar Out-of-Distribution model based on the Context-encoding Variational Autoencoder (ceVAE) by Zimmerer et al. [2]. The model makes use of the model-internal latent representation deviations to end up with a more expressive reconstruction error and allows anomaly detection on both a sample as well as a pixel level.
@@ -74,6 +86,12 @@ A full Anomaly Detection pipeline can be examined in the example notebook `noteb
 
 ```
 make notebook
+```
+
+#### Training
+
+```
+nohup sdo-cli sood ce_vae train --config-file="./config/ce-vae/run-fhnw-full-1.yaml" & 
 ```
 
 ## Local Development
@@ -112,6 +130,3 @@ Also refer to this [link](https://www.chrisjmendez.com/2017/08/03/installing-mul
 
 - [1] Ahmadzadeh, Azim, Dustin J. Kempton, and Rafal A. Angryk. "A Curated Image Parameter Data Set from the Solar Dynamics Observatory Mission." The Astrophysical Journal Supplement Series 243.1 (2019): 18.
 - [2] Zimmerer, David, et al. "Context-encoding variational autoencoder for unsupervised anomaly detection." arXiv preprint arXiv:1812.05941 (2018).
-
-
-sdo-cli events get --start="2012-01-01T00:00:00" --end="2012-01-02T23:59:59" --event-type="FL"
