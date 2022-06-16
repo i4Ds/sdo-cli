@@ -125,7 +125,7 @@ class SDOMLv2NumpyDataset(Dataset):
                     logger.warn(
                         f"attr {key} has None values, dropping it...")
                     keys_to_remove.add(key)
-                    continue
+                    break
 
         for key in keys_to_remove:
             del self.attrs[key]
