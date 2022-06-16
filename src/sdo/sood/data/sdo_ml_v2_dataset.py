@@ -112,12 +112,20 @@ class SDOMLv2NumpyDataset(Dataset):
         logger.info(
             f"found {len(self.all_images)} images")
 
-        keys_to_remove = []
-        for key, value in self.attrs.items():
-            if len(value) != len(self.all_images):
+        keys_to_remove = set()
+        for key, values in self.attrs.items():
+            if len(values) != len(self.all_images):
                 logger.warn(
-                    f"attr {key} does not have the same length ({len(value)}) as the data ({len(self.all_images)}), dropping it...")
-                keys_to_remove.append(key)
+                    f"attr {key} does not have the same length ({len(values)}) as the data ({len(self.all_images)}), dropping it...")
+                keys_to_remove.add(key)
+                continue
+
+            for value in values:
+                if value is None:
+                    logger.warn(
+                        f"attr {key} has None values, dropping it...")
+                    keys_to_remove.add(key)
+                    break
 
         for key in keys_to_remove:
             del self.attrs[key]
