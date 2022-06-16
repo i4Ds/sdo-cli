@@ -2,8 +2,11 @@
 import numpy as np
 import torch
 import torch.distributions as dist
+import logging
 
 from sdo.sood.models.nets import BasicEncoder, BasicGenerator
+
+logger = logging.getLogger(__name__)
 
 
 class VAE(torch.nn.Module):
@@ -89,18 +92,24 @@ class VAE(torch.nn.Module):
 
         mu, log_std = torch.chunk(y1, 2, dim=1)
         std = torch.exp(log_std)
-        z_dist = dist.Normal(mu, std)
-        if sample:
-            z_sample = z_dist.rsample()
-        else:
-            z_sample = mu
 
-        x_rec = self.dec(z_sample)
+        try:
+            z_dist = dist.Normal(mu, std)
+            if sample:
+                z_sample = z_dist.rsample()
+            else:
+                z_sample = mu
 
-        if no_dist:
-            return x_rec
-        else:
-            return x_rec, z_dist
+            x_rec = self.dec(z_sample)
+
+            if no_dist:
+                return x_rec
+            else:
+                return x_rec, z_dist
+        except Exception as e:
+            np.set_printoptions(threshold=np.nan)
+            logger.error(f"could not forward sample {mu}", e)
+            raise e
 
     def encode(self, inpt, **kwargs):
         """Encodes a sample and returns the paramters for the approx inference dist. (Normal)
