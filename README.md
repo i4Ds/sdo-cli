@@ -40,7 +40,7 @@ Commands:
 
 **Examples:**
 
-Download images from the Curate Image Parameter Dataset:
+Download images from the Curated Image Parameter Dataset:
 
 ```
 sdo-cli data download --path='./data/aia_171_2012' --start='2012-03-07T00:02:00' --end='2012-03-07T00:40:00' --freq='6min' --wavelength='171'

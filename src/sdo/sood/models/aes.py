@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.distributions as dist
 import logging
+import sys
 
 from sdo.sood.models.nets import BasicEncoder, BasicGenerator
 
@@ -107,7 +108,7 @@ class VAE(torch.nn.Module):
             else:
                 return x_rec, z_dist
         except Exception as e:
-            np.set_printoptions(threshold=np.nan)
+            np.set_printoptions(threshold=sys.maxsize)
             logger.error(f"could not forward sample {mu}", e)
             raise e
 

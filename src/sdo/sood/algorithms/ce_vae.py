@@ -374,8 +374,8 @@ def main(
     logger.info("found config")
     logger.info(json.dumps(config, indent=2))
 
-    work_dir = Path(
-        config.log_dir.value) / Path(f"{datetime.datetime.now().strftime(folder_time_format)}_cevae")
+    current_run_name = f"{datetime.datetime.now().strftime(folder_time_format)}_cevae"
+    work_dir = Path(config.log_dir.value) / Path(current_run_name)
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
 
@@ -486,6 +486,7 @@ def main(
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=config.devices.gpus.value,
                              profiler=profiler,
+                             precision=64,
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=callbacks)
@@ -508,6 +509,8 @@ def main(
             logger.error(
                 "Please either provide a log/output dir or a prediction dir")
             sys.exit(0)
+        else:
+            pred_dir = Path(pred_dir) / Path(current_run_name)
 
         if not os.path.exists(pred_dir):
             os.makedirs(pred_dir, exist_ok=True)
