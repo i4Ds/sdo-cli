@@ -79,52 +79,57 @@ class ceVAE(pl.LightningModule):
         self.mode = "sample"
 
     def training_step(self, batch, batch_idx):
-        x, _ = batch  # only inputs no labels
+        x, attrs = batch  # only inputs no labels
 
         # VAE Part
         loss_vae = 0
         loss_vae_kl = 0
         loss_vae_rec = 0
-        if self.ce_factor < 1:
-            x_rec_vae, z_dist, = self.model(x)
+        try:
+            if self.ce_factor < 1:
+                x_rec_vae, z_dist, = self.model(x)
 
-            if self.beta > 0:
-                loss_vae_kl = self.kl_loss_fn(z_dist) * self.beta
+                if self.beta > 0:
+                    loss_vae_kl = self.kl_loss_fn(z_dist) * self.beta
 
-            loss_vae_rec = self.rec_loss_fn(x_rec_vae, x)
-            loss_vae = loss_vae_kl + loss_vae_rec * self.theta
+                loss_vae_rec = self.rec_loss_fn(x_rec_vae, x)
+                loss_vae = loss_vae_kl + loss_vae_rec * self.theta
 
-        # CE Part
-        loss_ce = 0
-        if self.ce_factor > 0:
-            ce_tensor = get_square_mask(
-                x.shape,
-                square_size=(0, np.max(self.input_shape[2:]) // 2),
-                noise_val=(torch.min(x).item(),
-                           torch.max(x).item()),
-                n_squares=(0, 3),
-            )
-            ce_tensor = torch.from_numpy(ce_tensor).float()
-            ce_tensor = ce_tensor.type_as(x)
-            inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
-            x_rec_ce, _ = self.model(inpt_noisy)
-            rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
-            loss_ce = rec_loss_ce
+            # CE Part
+            loss_ce = 0
+            if self.ce_factor > 0:
+                ce_tensor = get_square_mask(
+                    x.shape,
+                    square_size=(0, np.max(self.input_shape[2:]) // 2),
+                    noise_val=(torch.min(x).item(),
+                               torch.max(x).item()),
+                    n_squares=(0, 3),
+                )
+                ce_tensor = torch.from_numpy(ce_tensor).float()
+                ce_tensor = ce_tensor.type_as(x)
+                inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
+                x_rec_ce, _ = self.model(inpt_noisy)
+                rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
+                loss_ce = rec_loss_ce
 
-        loss = (1.0 - self.ce_factor) * \
-            loss_vae + self.ce_factor * loss_ce
+            loss = (1.0 - self.ce_factor) * \
+                loss_vae + self.ce_factor * loss_ce
 
-        # Generalized ELBO with Constrained Optimization
-        if self.use_geco and self.ce_factor < 1:
-            g_goal = 0.1
-            g_lr = 1e-4
-            self.vae_loss_ema = (1.0 - 0.9) * \
-                loss_vae_rec + 0.9 * self.vae_loss_ema
-            self.theta = self.geco_beta_update(
-                self.theta, self.vae_loss_ema, g_goal, g_lr, speedup=2)
+            # Generalized ELBO with Constrained Optimization
+            if self.use_geco and self.ce_factor < 1:
+                g_goal = 0.1
+                g_lr = 1e-4
+                self.vae_loss_ema = (1.0 - 0.9) * \
+                    loss_vae_rec + 0.9 * self.vae_loss_ema
+                self.theta = self.geco_beta_update(
+                    self.theta, self.vae_loss_ema, g_goal, g_lr, speedup=2)
 
-            self.log('geco_theta', self.theta)
-            self.log('geco_vae_loss_ema', self.vae_loss_ema)
+                self.log('geco_theta', self.theta)
+                self.log('geco_vae_loss_ema', self.vae_loss_ema)
+        except Exception as e:
+            logger.error(
+                f"exception during training step for data {x} with attrs {attrs}", e)
+            raise e
 
         if batch_idx % self.print_every_iter == 0:
             sample_images = []
