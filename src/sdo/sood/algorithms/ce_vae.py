@@ -486,7 +486,7 @@ def main(
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=config.devices.gpus.value,
                              profiler=profiler,
-                             precision=64,
+                             precision=32,
                              accelerator="auto",
                              default_root_dir=work_dir,
                              callbacks=callbacks)

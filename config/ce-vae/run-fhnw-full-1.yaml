@@ -37,7 +37,7 @@ data:
     test_end_date:
       value: null
     train_val_split_ratio:
-      value: 0.95
+      value: 0.9
     train_val_split_temporal_chunk_size:
       value: 14d
 predict:
