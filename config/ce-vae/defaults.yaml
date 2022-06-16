@@ -31,7 +31,7 @@ data:
     value: 0
     desc: "How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
   prefetch_factor:
-    value: 8
+    value: 4
     desc: "Number of samples loaded in advance by each worker. 2 means there will be a total of 2 * num_workers samples prefetched across all workers."
   pin_memory:
     value: false

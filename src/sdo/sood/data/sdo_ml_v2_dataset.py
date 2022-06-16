@@ -16,9 +16,12 @@ import dask.array as da
 from typing import Union
 from collections import defaultdict
 from sdo.sood.data.chunk_sampler import SequenceInChunkSampler
+import logging
 
 hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
 hmi_channels = ['Bx', 'By', 'Bz']
+
+logger = logging.getLogger(__name__)
 
 
 class SDOMLv2NumpyDataset(Dataset):
@@ -51,8 +54,8 @@ class SDOMLv2NumpyDataset(Dataset):
 
         cache = zarr.LRUStoreCache(store, max_size=cache_max_size)
         root = zarr.open(store=cache, mode='r')
-        print("discovered the following zarr directory structure")
-        print(root.tree())
+        logger.info("discovered the following zarr directory structure")
+        logger.info(root.tree())
 
         if year:
             if type(year) == str:
@@ -91,7 +94,7 @@ class SDOMLv2NumpyDataset(Dataset):
 
             if irradiance is not None:
                 images, attrs = self.irradiance_filtering(
-                    channel, irradiance, irradiance_channel, goes_cache_dir, arr, images)
+                    channel, irradiance, irradiance_channel, goes_cache_dir, images, attrs)
             all_images.append(images)
             all_attrs.append(attrs)
 
@@ -106,39 +109,45 @@ class SDOMLv2NumpyDataset(Dataset):
         self.channel = channel
 
         self.data_len = len(self.all_images)
-        print(
+        logger.info(
             f"found {len(self.all_images)} images")
+
+        for key, value in self.attrs.items():
+            assert len(value) == len(
+                self.all_images), f"attr {key} does not have the same length ({len(value)}) as the data ({len(self.all_images)})"
+
         if n_items is None:
             self.n_items = self.data_len
         else:
             self.n_items = int(n_items)
 
-    def irradiance_filtering(self, channel, irradiance, irradiance_channel, goes_cache_dir, data, all_images):
+    def irradiance_filtering(self, channel, irradiance, irradiance_channel, goes_cache_dir, images, attrs):
         from sdo.data_loader.goes.cache import GOESCache
         goes_cache = GOESCache(goes_cache_dir)
-        df_time = self.obs_time_as_df(channel, data)
+        df_time = self.obs_time_as_df(channel, attrs)
         for i in range(len(df_time.index)):
             ts = df_time.loc[i]["Time"]
             try:
                 goes_at = goes_cache.get_goes_at(ts.replace(tzinfo=None))
             except ValueError:
+                logger.warn(f"no GOES value found at {ts}, setting to np.nan")
                 goes_at = {"xrsa": np.nan, "xrsb": np.nan}
 
             df_time.loc[i, 'xrsa'] = goes_at["xrsa"]
             df_time.loc[i, 'xrsb'] = goes_at["xrsb"]
         irr_filter = (df_time[irradiance_channel] <= irradiance)
         irr_index = df_time['Time'].index[irr_filter].tolist()
-        all_images = all_images[irr_index, :, :]
+        images = images[irr_index, :, :]
         attrs = {keys: [values[idx] for idx in irr_index]
                  for keys, values in attrs.items()}
 
-        return all_images, attrs
+        return images, attrs
 
     def temporal_filtering(self, channel, start, end, data):
-        print(
+        logger.info(
             f"filtering data between {start} and {end}")
 
-        df_time = self.obs_time_as_df(channel, data)
+        df_time = self.obs_time_as_df(channel, data.attrs)
 
         if start is not None and end is not None:
             filter = (df_time['Time'] >= start) & (
@@ -155,10 +164,10 @@ class SDOMLv2NumpyDataset(Dataset):
         return all_images, attrs
 
     def temporal_downsampling(self, channel, start, end, freq, data):
-        print(
+        logger.info(
             f"applying temporal downsampling to freq {freq} between {start} and {end}")
 
-        df_time = self.obs_time_as_df(channel, data)
+        df_time = self.obs_time_as_df(channel, data.attrs)
 
         # select times at a frequency of freq (e.g. 12T)
         selected_times = pd.date_range(
@@ -173,8 +182,8 @@ class SDOMLv2NumpyDataset(Dataset):
                  for keys, values in data.attrs.items()}
         return all_images, attrs
 
-    def obs_time_as_df(self, channel, data):
-        t_obs = np.array(data.attrs["T_OBS"])
+    def obs_time_as_df(self, channel, attrs):
+        t_obs = np.array(attrs["T_OBS"])
         df_time = pd.DataFrame(t_obs, index=np.arange(
             np.shape(t_obs)[0]), columns=["Time"])
         # NOTE for HMI the date format is different 2010.05.01_00:12:04_TAI
@@ -190,25 +199,29 @@ class SDOMLv2NumpyDataset(Dataset):
         return self.n_items
 
     def __getitem__(self, item):
-        if item >= self.n_items:
-            raise StopIteration()
+        try:
+            if item >= self.n_items:
+                raise StopIteration()
 
-        idx = item % self.data_len
-        image = self.all_images[idx, :, :]
+            idx = item % self.data_len
+            image = self.all_images[idx, :, :]
 
-        attrs = dict([(key, self.attrs[key][idx])
-                      for key in self.attrs.keys()])
+            attrs = dict([(key, self.attrs[key][idx])
+                          for key in self.attrs.keys()])
 
-        # Pytorch does not support NoneType items
-        attrs = {k: v for k, v in attrs.items() if v is not None}
+            # Pytorch does not support NoneType items
+            attrs = {k: v for k, v in attrs.items() if v is not None}
 
-        torch_arr = torch.from_numpy(np.array(image))
-        # convert to 1 x H x W, to be in compatible torchvision format
-        torch_arr = torch_arr.unsqueeze(dim=0)
-        if self.transforms is not None:
-            torch_arr = self.transforms(torch_arr)
+            torch_arr = torch.from_numpy(np.array(image))
+            # convert to 1 x H x W, to be in compatible torchvision format
+            torch_arr = torch_arr.unsqueeze(dim=0)
+            if self.transforms is not None:
+                torch_arr = self.transforms(torch_arr)
 
-        return torch_arr, attrs
+            return torch_arr, attrs
+        except Exception as e:
+            logger.error(f"could not get image for index {item}", e)
+            raise e
 
 
 # TODO are these values still applicable for the new correction factors?
@@ -402,7 +415,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                 num_samples = len(dataset)
                 splits = [int(math.floor(num_samples*train_val_split_ratio)),
                           int(math.ceil(num_samples * (1 - train_val_split_ratio)))]
-                print(f"splitting datatset with {num_samples} into {splits}")
+                logger.info(
+                    f"splitting datatset with {num_samples} into {splits}")
                 self.dataset_train, self.dataset_val = random_split(
                     dataset, splits)
             elif train_val_split_strategy == "temporal":
@@ -487,7 +501,7 @@ def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temp
     group_indices = randperm(len(grouped), generator=generator).tolist()
     num_chunks = len(group_indices)
     train_size = int(math.ceil(num_chunks*split_ratio))
-    print(
+    logger.info(
         f"Selecting groups for train-validation split. Number of groups {num_chunks}, number of groups for training {train_size}, number of groups for validation {num_chunks - train_size}")
     train_indices = []
     val_indices = []
@@ -502,6 +516,6 @@ def temporal_train_val_split(dataset: SDOMLv2NumpyDataset, split_ratio=0.7, temp
         for _, row in group.iterrows():
             val_indices.append(row["Index"])
 
-    print(
+    logger.info(
         f"splitting Dataset into two subsets. Train size {len(train_indices)}, validation size {len(val_indices)}")
     return Subset(dataset, train_indices), Subset(dataset, val_indices)
