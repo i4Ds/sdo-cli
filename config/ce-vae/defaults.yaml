@@ -104,10 +104,14 @@ train:
     desc: ""
   profile:
     value: false
-    desc: "Whether to profile the training run (only for debugging)"
+    desc: "Whether to profile the training run (only for debugging)."
   early_stopping:
     value: true
-    desc: "Whether to enable early stopping"
+    desc: "Whether to enable early stopping."
 log_dir:
   value: "./output/logs"
   desc: "Output directory for log."
+devices:
+  gpus:
+    value: 1
+    desc: "Allows to select how many gpus to use for training (int) or on which GPUs to train list."
