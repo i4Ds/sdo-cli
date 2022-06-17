@@ -156,7 +156,7 @@ class SDOMLv2NumpyDataset(Dataset):
                     break
 
         for key in keys_to_remove:
-            del self.attrs[key]
+            del attrs[key]
 
         return attrs
 
