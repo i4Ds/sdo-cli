@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="sdo-cli",
-    version="0.0.12",
+    version="0.0.13",
     author="Marius Giger",
     author_email="marius.giger@fhnw.ch",
     description="An ML practitioner's utility for working with SDO data.",
