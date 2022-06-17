@@ -103,7 +103,7 @@ class SDOMLv2NumpyDataset(Dataset):
         all_attrs = []
         for arr in data:
             images = da.from_array(arr)
-            attrs = arr.attrs
+            attrs = dict(arr.attrs)
 
             images, attrs = self.data_quality_check(channel, images, attrs)
             if freq:
@@ -129,6 +129,7 @@ class SDOMLv2NumpyDataset(Dataset):
         self.attrs = merged_attrs
         self.channel = channel
 
+        # call drop invalid attrs again to drop attibutes that are not the same accross years
         self.attrs = self.drop_invalid_attrs(self.all_images, self.attrs)
         self.data_len = len(self.all_images)
         logger.info(
