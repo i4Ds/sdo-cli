@@ -22,6 +22,27 @@ hmi_date_format = '%Y.%m.%d_%H:%M:%S_TAI'
 hmi_channels = ['Bx', 'By', 'Bz']
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# TODO manually ignored data points due to invalid samples in SDO ML v2
+# remove once https://github.com/SDOML/SDOMLv2/issues/1 is resolved
+# channel -> T_OBS
+invalid_data = {
+    "171A": [
+        "2020-02-24T01:48:10.35Z",
+        "2020-02-24T01:54:10.35Z",
+        "2020-02-24T02:00:10.35Z",
+        "2020-02-24T02:06:10.35Z",
+        "2020-02-24T02:12:10.35Z",
+        "2020-02-24T02:18:10.34Z",
+        "2020-02-24T02:24:10.35Z",
+        "2020-02-24T02:30:10.35Z",
+        "2020-02-24T02:36:10.35Z",
+        "2020-02-24T02:42:10.34Z",
+        "2020-02-24T02:48:10.35Z",
+        "2020-02-24T02:54:10.34Z"
+    ]
+}
 
 
 class SDOMLv2NumpyDataset(Dataset):
@@ -81,16 +102,16 @@ class SDOMLv2NumpyDataset(Dataset):
         all_images = []
         all_attrs = []
         for arr in data:
+            images = da.from_array(arr)
+            attrs = arr.attrs
+
+            images, attrs = self.data_quality_check(channel, images, attrs)
             if freq:
                 images, attrs = self.temporal_downsampling(
-                    channel, start, end, freq, arr)
+                    channel, start, end, freq, images, attrs)
             elif start is not None or end is not None:
                 images, attrs = self.temporal_filtering(
-                    channel, start, end, arr)
-            else:
-                # all data should be used
-                attrs = arr.attrs
-                images = da.from_array(arr)
+                    channel, start, end, images, attrs)
 
             if irradiance is not None:
                 images, attrs = self.irradiance_filtering(
@@ -157,11 +178,11 @@ class SDOMLv2NumpyDataset(Dataset):
 
         return images, attrs
 
-    def temporal_filtering(self, channel, start, end, data):
+    def temporal_filtering(self, channel, start, end, images, attrs):
         logger.info(
             f"filtering data between {start} and {end}")
 
-        df_time = self.obs_time_as_df(channel, data.attrs)
+        df_time = self.obs_time_as_df(channel, attrs)
 
         if start is not None and end is not None:
             filter = (df_time['Time'] >= start) & (
@@ -172,16 +193,33 @@ class SDOMLv2NumpyDataset(Dataset):
             filter = (df_time['Time'] <= end)
 
         time_index = df_time['Time'].index[filter].tolist()
-        all_images = da.from_array(data)[time_index, :, :]
+        images = images[time_index, :, :]
         attrs = {keys: [values[idx] for idx in time_index]
-                 for keys, values in data.attrs.items()}
-        return all_images, attrs
+                 for keys, values in attrs.items()}
+        return images, attrs
 
-    def temporal_downsampling(self, channel, start, end, freq, data):
+    def data_quality_check(self, channel, images, attrs):
+        logger.info(
+            f"checking data quality and removing invalid samples")
+
+        df_time = self.obs_time_as_df(channel, attrs)
+        invalid_times = invalid_data.get(channel)
+        if invalid_times:
+            # equivalent to (but faster than) np.invert(np.isin(a, b))
+            filter = np.isin(df_time['Time'], invalid_times, invert=True)
+
+            clean_index = df_time['Time'].index[filter].tolist()
+            images = images[clean_index, :, :]
+            attrs = {keys: [values[idx] for idx in clean_index]
+                     for keys, values in attrs.items()}
+
+        return images, attrs
+
+    def temporal_downsampling(self, channel, start, end, freq, images, attrs):
         logger.info(
             f"applying temporal downsampling to freq {freq} between {start} and {end}")
 
-        df_time = self.obs_time_as_df(channel, data.attrs)
+        df_time = self.obs_time_as_df(channel, attrs)
 
         # select times at a frequency of freq (e.g. 12T)
         selected_times = pd.date_range(
@@ -191,10 +229,10 @@ class SDOMLv2NumpyDataset(Dataset):
         for i in selected_times:
             selected_index.append(np.argmin(abs(df_time["Time"] - i)))
         time_index = [x for x in selected_index if x > 0]
-        all_images = da.from_array(data)[time_index, :, :]
+        images = images[time_index, :, :]
         attrs = {keys: [values[idx] for idx in time_index]
-                 for keys, values in data.attrs.items()}
-        return all_images, attrs
+                 for keys, values in attrs.items()}
+        return images, attrs
 
     def obs_time_as_df(self, channel, attrs):
         t_obs = np.array(attrs["T_OBS"])
@@ -256,8 +294,6 @@ CHANNEL_PREPROCESS = {
     "Bx": {"min": -250, "max": 250, "scaling": None},
     "By": {"min": -250, "max": 250, "scaling": None},
     "Bz": {"min": -250, "max": 250, "scaling": None},
-
-
 }
 
 
