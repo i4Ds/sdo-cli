@@ -129,15 +129,22 @@ class SDOMLv2NumpyDataset(Dataset):
         self.attrs = merged_attrs
         self.channel = channel
 
+        self.attrs = self.drop_invalid_attrs(self.all_images, self.attrs)
         self.data_len = len(self.all_images)
         logger.info(
             f"found {len(self.all_images)} images")
 
+        if n_items is None:
+            self.n_items = self.data_len
+        else:
+            self.n_items = int(n_items)
+
+    def drop_invalid_attrs(self, images, attrs):
         keys_to_remove = set()
-        for key, values in self.attrs.items():
-            if len(values) != len(self.all_images):
+        for key, values in attrs.items():
+            if len(values) != len(images):
                 logger.warn(
-                    f"attr {key} does not have the same length ({len(values)}) as the data ({len(self.all_images)}), dropping it...")
+                    f"attr {key} does not have the same length ({len(values)}) as the data ({len(images)}), dropping it...")
                 keys_to_remove.add(key)
                 continue
 
@@ -151,10 +158,7 @@ class SDOMLv2NumpyDataset(Dataset):
         for key in keys_to_remove:
             del self.attrs[key]
 
-        if n_items is None:
-            self.n_items = self.data_len
-        else:
-            self.n_items = int(n_items)
+        return attrs
 
     def irradiance_filtering(self, channel, irradiance, irradiance_channel, goes_cache_dir, images, attrs):
         from sdo.data_loader.goes.cache import GOESCache
@@ -202,10 +206,7 @@ class SDOMLv2NumpyDataset(Dataset):
         logger.info(
             f"checking data quality and removing invalid samples for {len(images)} images")
 
-        for key, values in attrs.items():
-            if len(values) != len(images):
-                logger.warn(
-                    f"attr {key} does not have the same length ({len(values)}) as the data ({len(images)}), action required...")
+        attrs = self.drop_invalid_attrs(images, attrs)
 
         invalid_times = invalid_data.get(channel)
         if invalid_times:
