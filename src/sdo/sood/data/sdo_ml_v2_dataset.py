@@ -212,9 +212,14 @@ class SDOMLv2NumpyDataset(Dataset):
 
             clean_index = df_time['Time'].index[filter].tolist()
             images = images[clean_index, :, :]
-            attrs = {keys: [values[idx] for idx in clean_index]
-                     for keys, values in attrs.items()}
-
+            try:
+                attrs = {keys: [values[idx] for idx in clean_index]
+                         for keys, values in attrs.items()}
+            except Exception as e:
+                attr_length = len(attrs["T_OBS"])
+                logger.error(
+                    f"could not apply data cleaning with {clean_index} for {attr_length}", e)
+                raise e
         return images, attrs
 
     def temporal_downsampling(self, channel, start, end, freq, images, attrs):
