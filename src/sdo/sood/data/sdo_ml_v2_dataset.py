@@ -200,7 +200,12 @@ class SDOMLv2NumpyDataset(Dataset):
 
     def data_quality_check(self, channel, images, attrs):
         logger.info(
-            f"checking data quality and removing invalid samples")
+            f"checking data quality and removing invalid samples for {len(images)} images")
+
+        for key, values in attrs.items():
+            if len(values) != len(images):
+                logger.warn(
+                    f"attr {key} does not have the same length ({len(values)}) as the data ({len(images)}), action required...")
 
         invalid_times = invalid_data.get(channel)
         if invalid_times:
