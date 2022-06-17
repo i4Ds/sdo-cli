@@ -202,9 +202,11 @@ class SDOMLv2NumpyDataset(Dataset):
         logger.info(
             f"checking data quality and removing invalid samples")
 
-        df_time = self.obs_time_as_df(channel, attrs)
         invalid_times = invalid_data.get(channel)
         if invalid_times:
+            t_obs = np.array(attrs["T_OBS"])
+            df_time = pd.DataFrame(t_obs, index=np.arange(
+                np.shape(t_obs)[0]), columns=["Time"])
             # equivalent to (but faster than) np.invert(np.isin(a, b))
             filter = np.isin(df_time['Time'], invalid_times, invert=True)
 
