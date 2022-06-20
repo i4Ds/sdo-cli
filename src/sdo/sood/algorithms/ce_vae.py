@@ -453,7 +453,8 @@ def main(
                                                 test_start=config.data.sdo_ml_v2.test_start_date.value,
                                                 test_end=config.data.sdo_ml_v2.test_end_date.value,
                                                 train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
-                                                train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value)
+                                                train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value,
+                                                sampling_strategy=config.data.sdo_ml_v2.sampling_strategy.value)
 
         # config_exclude_keys are already logged from config directly
         wandb_logger = WandbLogger(

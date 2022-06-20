@@ -379,7 +379,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  num_workers: int = 0,
                  drop_last: bool = False,
                  prefetch_factor: int = 8,
-                 cache_max_size: int = 2*1024*1024*2014,
+                 cache_max_size: int = 1*1024*1024*2014,
                  target_size: int = 256,
                  channel: str = "171A",
                  train_year: Union[str, list] = "2010",
@@ -396,7 +396,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  train_val_split_strategy: str = "temporal",
                  train_val_split_ratio: float = 0.7,
                  train_val_split_temporal_chunk_size: str = "14d",
-                 skip_train_val: bool = False
+                 skip_train_val: bool = False,
+                 sampling_strategy: str = "chunk"
                  ):
         """
         Creates a LightningDataModule for the SDO Ml v2 dataset
@@ -416,7 +417,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
             num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
             drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
-            cache_max_size (int, optional): The maximum size that the cache may grow to, in number of bytes. Defaults to 2GB.
+            cache_max_size (int, optional): The maximum size that the cache may grow to, in number of bytes. Defaults to 1GB.
             target_size (int, optional): [New spatial dimension of to which the input data will be transformed]. Defaults to 256.
             channel (str, optional): [Channel name that should be used. If None all available channels will be used.]. Defaults to "171A".
             train_year (str|list[str], optional): [Allows to prefilter the dataset by year. Can be a string or list of strings. If None all available years will be used.]. Defaults to "2010".
@@ -434,6 +435,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             train_val_split_ratio (float, optional): [Split-ratio for the train-validation split]. Defaults to 0.7.
             train_val_split_temporal_chunk_size (str, optional): [Temporal chunks for the train-validation splits]. Defaults to "14d".
             skip_train_val (bool, optional): [Whether to skip loading the train and validation sets]: Defaults to False.
+            sampling_strategy (str, optional): [Which sampling strategy to use (chunk or default)]: Defaults to "chunk".
         """
 
         super().__init__()
@@ -492,33 +494,43 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         self.drop_last = drop_last
         self.shuffle = shuffle
         self.prefetch_factor = prefetch_factor
+        self.sampling_strategy = sampling_strategy
 
     def train_dataloader(self):
+        sampler = None
+        if self.sampling_strategy == "chunk":
+            sampler = SequenceInChunkSampler(self.dataset_train)
         return DataLoader(self.dataset_train, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
                           prefetch_factor=self.prefetch_factor,
-                          sampler=SequenceInChunkSampler(self.dataset_train))
+                          sampler=sampler)
 
     def val_dataloader(self):
+        sampler = None
+        if self.sampling_strategy == "chunk":
+            sampler = SequenceInChunkSampler(self.dataset_train)
         return DataLoader(self.dataset_val, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
                           prefetch_factor=self.prefetch_factor,
-                          sampler=SequenceInChunkSampler(self.dataset_val))
+                          sampler=sampler)
 
     def test_dataloader(self):
+        sampler = None
+        if self.sampling_strategy == "chunk":
+            sampler = SequenceInChunkSampler(self.dataset_train)
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
                           prefetch_factor=self.prefetch_factor,
-                          sampler=SequenceInChunkSampler(self.dataset_test))
+                          sampler=sampler)
 
     def predict_dataloader(self):
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
