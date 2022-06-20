@@ -76,6 +76,9 @@ data:
     train_val_split_temporal_chunk_size:
       value: 14d
       desc: "Temporal chunk size for the train-validation splits."
+    sampling_strategy:
+      value: "chunk"
+      desc: "Which sampling strategy to use (chunk or default)."
 predict:
   mode:
     value: pixel

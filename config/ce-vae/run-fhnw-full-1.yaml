@@ -7,11 +7,11 @@ data:
   dataset:
     value: SDOMLDatasetV2
   num_data_loader_workers:
-    value: 16
+    value: 8
   prefetch_factor:
-    value: 4
+    value: 2
   batch_size:
-    value: 32
+    value: 64
   sdo_ml_v2:
     train_year:
       value:
@@ -40,6 +40,8 @@ data:
       value: 0.9
     train_val_split_temporal_chunk_size:
       value: 14d
+    sampling_strategy:
+      value: "default"
 predict:
   mode:
     value: sample
