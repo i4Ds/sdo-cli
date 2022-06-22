@@ -569,6 +569,12 @@ def main(
             if config.predict.mode.value == "pixel":
                 pixel_scores = cevae_algo.score_pixels(img[0])
                 # TODO rather normalize over the full dataset
+                save_src_image = False  # TODO make configurable
+                if save_src_image:
+                    src_file_name = Path(
+                        f"{timestamp.strftime(folder_time_format)}_{wavelength}A_src.png")
+                    src_file_path = Path(pred_dir) / src_file_name
+                    save_image(img[0], src_file_path)
                 save_image(pixel_scores, file_path, normalize=True)
             if config.predict.mode.value == "sample":
                 # TODO make it work for batches instead of single images
