@@ -108,6 +108,9 @@ train:
   profile:
     value: false
     desc: "Whether to profile the training run (only for debugging)."
+  fast_dev_run:
+    value: false
+    desc: "Runs n if set to ``n`` (int) else 1 if set to ``True`` batch(es) of train, val and test to find any bugs (ie: a sort of unit test)."
   early_stopping:
     value: true
     desc: "Whether to enable early stopping."
