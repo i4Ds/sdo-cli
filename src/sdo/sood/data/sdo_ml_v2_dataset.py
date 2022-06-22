@@ -496,7 +496,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
     def val_dataloader(self):
         sampler = None
         if self.sampling_strategy == "chunk":
-            sampler = SequenceInChunkSampler(self.dataset_train)
+            sampler = SequenceInChunkSampler(self.dataset_val)
         return DataLoader(self.dataset_val, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
@@ -508,7 +508,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
     def test_dataloader(self):
         sampler = None
         if self.sampling_strategy == "chunk":
-            sampler = SequenceInChunkSampler(self.dataset_train)
+            sampler = SequenceInChunkSampler(self.dataset_test)
         return DataLoader(self.dataset_test, batch_size=self.batch_size,
                           shuffle=self.shuffle,
                           num_workers=self.num_workers,
