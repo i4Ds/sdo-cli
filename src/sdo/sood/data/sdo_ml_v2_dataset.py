@@ -50,7 +50,6 @@ class SDOMLv2NumpyDataset(Dataset):
             self,
             storage_root: str,
             storage_driver: str,
-            n_items: int,
             year: Union[str, list],
             channel: str,
             start: Union[str, list],
@@ -134,11 +133,6 @@ class SDOMLv2NumpyDataset(Dataset):
         self.data_len = len(self.all_images)
         logger.info(
             f"found {len(self.all_images)} images")
-
-        if n_items is None:
-            self.n_items = self.data_len
-        else:
-            self.n_items = int(n_items)
 
     def drop_invalid_attrs(self, images, attrs):
         keys_to_remove = set()
@@ -262,14 +256,10 @@ class SDOMLv2NumpyDataset(Dataset):
         return df_time
 
     def __len__(self):
-        return self.n_items
+        return len(self.all_images)
 
-    def __getitem__(self, item):
+    def __getitem__(self, idx):
         try:
-            if item >= self.n_items:
-                raise StopIteration()
-
-            idx = item % self.data_len
             image = self.all_images[idx, :, :]
 
             attrs = dict([(key, self.attrs[key][idx])
@@ -286,7 +276,7 @@ class SDOMLv2NumpyDataset(Dataset):
 
             return torch_arr, attrs
         except Exception as e:
-            logger.error(f"could not get image for index {item}", e)
+            logger.error(f"could not get image for index {idx}", e)
             raise e
 
 
@@ -374,7 +364,6 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  storage_root: str = "fdl-sdoml-v2/sdomlv2_small.zarr/",
                  storage_driver: str = "gcs",
                  batch_size: int = 16,
-                 n_items: int = None,
                  pin_memory: bool = False,
                  num_workers: int = 0,
                  drop_last: bool = False,
@@ -412,8 +401,6 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             storage_root (str): [Root path containing the zarr archives]
             storage_driver(str, optional): [Storage driver used to load the data. Either 'gcs' (Google Storage Bucket) or 'fs' (local file system)]. Defaults to gcs.
             batch_size (int, optional): [See pytorch DataLoader]. Defaults to 16.
-            n_items (int, optional): [Number of items in the dataset, by default number of files in the loaded set
-                                            but can be smaller (uses subset) or larger (uses files multiple times)]. Defaults to None.
             pin_memory (bool, optional): [See pytorch DataLoader]. Defaults to False.
             num_workers (int, optional): [See pytorch DataLoader]. Defaults to 0.
             drop_last (bool, optional): [See pytorch DataLoader]. Defaults to False.
@@ -455,7 +442,6 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                 irradiance=irradiance,
                 irradiance_channel=irradiance_channel,
                 goes_cache_dir=goes_cache_dir,
-                n_items=n_items,
                 channel=channel,
                 transforms=transforms,
             )
@@ -471,7 +457,6 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             irradiance=irradiance,
             irradiance_channel=irradiance_channel,
             goes_cache_dir=goes_cache_dir,
-            n_items=n_items,
             channel=channel,
             transforms=transforms,
         )
