@@ -488,6 +488,7 @@ def main(
                 monitor="val_loss", mode="min", patience=10))
         trainer = pl.Trainer(logger=wandb_logger,
                              max_epochs=config.train.n_epochs.value,
+                             fast_dev_run=config.train.fast_dev_run.value,
                              # https://pytorch-lightning.readthedocs.io/en/1.4.7/common/single_gpu.html
                              # distributed training does not yet work because the data loader lambda cannot be pickled
                              gpus=config.devices.gpus.value,
