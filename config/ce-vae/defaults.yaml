@@ -79,6 +79,12 @@ data:
     sampling_strategy:
       value: "chunk"
       desc: "Which sampling strategy to use (chunk or default)."
+    mask_limb:
+      value: false
+      desc: "Whether to mask the solar limb."
+    mask_limb_radius_scale_factor:
+      value: 1.0
+      desc: "Allows to scale the radius that is used for masking the solar limb (>1.0 the radius is asssumed to be bigger, <1.0 the radius is assumed to be smaller"
 predict:
   mode:
     value: pixel
