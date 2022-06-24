@@ -454,7 +454,9 @@ def main(
                                                 test_end=config.data.sdo_ml_v2.test_end_date.value,
                                                 train_val_split_ratio=config.data.sdo_ml_v2.train_val_split_ratio.value,
                                                 train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value,
-                                                sampling_strategy=config.data.sdo_ml_v2.sampling_strategy.value)
+                                                sampling_strategy=config.data.sdo_ml_v2.sampling_strategy.value,
+                                                mask_limb=config.data.sdo_ml_v2.mask_limb.value,
+                                                mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value)
 
         # config_exclude_keys are already logged from config directly
         wandb_logger = WandbLogger(
@@ -557,7 +559,8 @@ def main(
                                                 test_start=config.data.sdo_ml_v2.test_start_date.value,
                                                 test_end=config.data.sdo_ml_v2.test_end_date.value,
                                                 skip_train_val=True,
-                                                )
+                                                mask_limb=config.data.sdo_ml_v2.mask_limb.value,
+                                                mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value)
                 data_loader = data_module.predict_dataloader()
         for index, batch in tqdm(enumerate(data_loader)):
             # TODO attrs are not available for ImageParameterDataset

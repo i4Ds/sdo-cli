@@ -301,35 +301,36 @@ CHANNEL_PREPROCESS = {
 }
 
 
-def get_default_transforms(target_size=128, channel="171"):
+def get_default_transforms(target_size=256, channel="171", mask_limb=False, radius_scale_factor=1.0):
     """Returns a Transform which resizes 2D samples (1xHxW) to a target_size (1 x target_size x target_size)
     and then converts them to a pytorch tensor.
-    Args:
-        target_size (int, optional): [New spatial dimension of the input data]. Defaults to 128.
-        channel (str, optional): [The SDO channel]. Defaults to 171.
-    Returns:
-        [Transform]
-    """
 
-    """
-    Apply the normalization necessary for the sdo-dataset. Depending on the channel, it:
-      - flips the image vertically
+    Apply the normalization necessary for the SDO ML Dataset. Depending on the channel, it:
+      - masks the limb with 0s
       - clips the "pixels" data in the predefined range (see above)
       - applies a log10() on the data
       - normalizes the data to the [0, 1] range
       - normalizes the data around 0 (standard scaling)
 
-    :param channel: The kind of data to preprocess
-    :param resize: Optional size of image (integer) to resize the image
-    :return: a transforms object to preprocess tensors
+    Args:
+        target_size (int, optional): [New spatial dimension of the input data]. Defaults to 256.
+        channel (str, optional): [The SDO channel]. Defaults to 171.
+        mask_limb (bool, optional): [Whether to mask the limb]. Defaults to False.
+        radius_scale_factor (float, optional): [Allows to scale the radius that is used for masking the limb]. Defaults to 1.0.
+    Returns:
+        [Transform]
     """
 
-    # also refer to https://pytorch.org/vision/stable/transforms.html
+    transforms = []
+
+    # also refer to
+    # https://pytorch.org/vision/stable/transforms.html
+    # https://github.com/i4Ds/SDOBenchmark/blob/master/dataset/data/load.py#L363
     # and https://gitlab.com/jdonzallaz/solarnet-thesis/-/blob/master/solarnet/data/transforms.py
     preprocess_config = CHANNEL_PREPROCESS[channel]
 
     if preprocess_config["scaling"] == "log10":
-        # TODO why was vflip(x) used here in SolarNet?
+        # TODO does it make sense to use vflip(x) in order to align the solar North as in JHelioviewer? otherwise this has to be done during inference
         def lambda_transform(x): return torch.log10(torch.clamp(
             x,
             min=preprocess_config["min"],
@@ -347,16 +348,50 @@ def get_default_transforms(target_size=128, channel="171"):
         mean = preprocess_config["min"]
         std = preprocess_config["max"] - preprocess_config["min"]
 
-    transforms = Compose(
-        [Resize((target_size, target_size)),
-         # TODO find out if these transforms make sense
-         Lambda(lambda x: lambda_transform(x)),
-         Normalize(mean=[mean], std=[std]),
-         # required to remove strange distribution of pixels (everything too bright)
-         Normalize(mean=(0.5), std=(0.5))
-         ]
-    )
-    return transforms
+    def limb_mask_transform(x):
+        h, w = x.shape[1], x.shape[2]  # C x H x W
+
+        # fixed disk size of Rs of 976 arcsec, pixel size in the scaled image (512x512) is ~4.8 arcsec
+        original_resolution = 4096
+        scaled_resolution = h
+        pixel_size_original = 0.6
+        radius_arcsec = 976.0
+        radius = (radius_arcsec / pixel_size_original) / \
+            original_resolution * scaled_resolution
+
+        mask = create_circular_mask(
+            h, w, radius=radius*radius_scale_factor)
+        mask = torch.as_tensor(mask, device=x.device)
+        return torch.where(mask, x, torch.tensor(0.0))
+
+    if mask_limb:
+        transforms.append(Lambda(lambda x: limb_mask_transform(x)))
+
+    transforms.append(Resize((target_size, target_size)))
+    # TODO find out if these transforms make sense
+    transforms.append(Lambda(lambda x: lambda_transform(x)))
+    transforms.append(Normalize(mean=[mean], std=[std]))
+    # required to remove strange distribution of pixels (everything too bright)
+    transforms.append(Normalize(mean=(0.5), std=(0.5)))
+
+    return Compose(transforms)
+
+
+def create_circular_mask(h, w, center=None, radius=None):
+    # TODO investigate the use of a circular mask to prevent focussing to much on the limb
+    # https://gitlab.com/jdonzallaz/solarnet-app/-/blob/master/src/prediction.py#L9
+
+    if center is None:  # use the middle of the image
+        center = (int(w/2), int(h/2))
+
+    if radius is None:  # use the smallest distance between the center and image walls
+        radius = min(center[0], center[1], w-center[0], h-center[1])
+
+    Y, X = np.ogrid[:h, :w]
+    dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2)
+
+    mask = dist_from_center <= radius
+    return mask
 
 
 class SDOMLv2DataModule(pl.LightningDataModule):
@@ -386,7 +421,9 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  train_val_split_ratio: float = 0.7,
                  train_val_split_temporal_chunk_size: str = "14d",
                  skip_train_val: bool = False,
-                 sampling_strategy: str = "chunk"
+                 sampling_strategy: str = "chunk",
+                 mask_limb: bool = False,
+                 mask_limb_radius_scale_factor: float = 1.0
                  ):
         """
         Creates a LightningDataModule for the SDO Ml v2 dataset
@@ -423,12 +460,14 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             train_val_split_temporal_chunk_size (str, optional): [Temporal chunks for the train-validation splits]. Defaults to "14d".
             skip_train_val (bool, optional): [Whether to skip loading the train and validation sets]: Defaults to False.
             sampling_strategy (str, optional): [Which sampling strategy to use (chunk or default)]: Defaults to "chunk".
+            mask_limb (bool, optional): [Whether to mask the solar limb]. Defaults to False.
+            mask_limb_radius_scale_factor (float, optional): [Allows to scale the radius that is used for masking the solar limb]. Defaults to 1.0.
         """
 
         super().__init__()
 
         transforms = get_default_transforms(
-            target_size=target_size, channel=channel)
+            target_size=target_size, channel=channel, mask_limb=mask_limb, radius_scale_factor=mask_limb_radius_scale_factor)
 
         if not skip_train_val:
             dataset = SDOMLv2NumpyDataset(
