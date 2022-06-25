@@ -44,3 +44,7 @@ train:
     value: false
   use_geco:
     value: true
+devices:
+  gpus:
+    value:
+      - 2

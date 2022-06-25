@@ -1,6 +1,8 @@
 model:
   load_path:
     value: null
+  z_dim:
+    value: 256
 data:
   data_dir:
     value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_full/sdomlv2.zarr

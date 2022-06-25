@@ -42,6 +42,8 @@ data:
       value: 14d
     sampling_strategy:
       value: "chunk"
+    mask_limb:
+      value: true
 predict:
   mode:
     value: sample
