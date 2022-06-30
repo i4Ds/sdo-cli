@@ -473,7 +473,7 @@ def main(
                                  "score_mode",
                                  "mode",
                                  "print_every_iter"])
-        wandb_logger.experiment.config.update(config)
+        wandb_logger.experiment.config.update(config, allow_val_change=True)
 
         profiler = None
         if config.train.profile.value == True:
