@@ -460,16 +460,19 @@ def main(
 
         # config_exclude_keys are already logged from config directly
         wandb_logger = WandbLogger(
-            project="sdo-sood", log_model="all", config_exclude_keys=["input_shape",
-                                                                      "lr",
-                                                                      "z_dim",
-                                                                      "model_feature_map_sizes",
-                                                                      "use_geco",
-                                                                      "beta",
-                                                                      "ce_factor",
-                                                                      "score_mode",
-                                                                      "mode",
-                                                                      "print_every_iter"])
+            project="sdo-sood",
+            log_model="all",
+            id=config.train.wandb_run_id.value,
+            config_exclude_keys=["input_shape",
+                                 "lr",
+                                 "z_dim",
+                                 "model_feature_map_sizes",
+                                 "use_geco",
+                                 "beta",
+                                 "ce_factor",
+                                 "score_mode",
+                                 "mode",
+                                 "print_every_iter"])
         wandb_logger.experiment.config.update(config)
 
         profiler = None

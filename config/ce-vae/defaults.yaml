@@ -96,6 +96,9 @@ predict:
     value: combi
     desc: "Score mode used for anomaly scoring ('rec', 'grad' or 'combi')"
 train:
+  wandb_run_id:
+    value: null
+    desc: "W&B run id to resume or name a run."
   n_epochs:
     value: 10
     desc: "Stop training once this number of epochs is reached."
