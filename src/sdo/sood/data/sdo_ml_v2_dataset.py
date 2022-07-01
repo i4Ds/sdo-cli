@@ -59,7 +59,8 @@ class SDOMLv2NumpyDataset(Dataset):
             irradiance_channel: str,
             goes_cache_dir: str,
             transforms: list,
-            cache_max_size: int):
+            cache_max_size: int,
+            reduce_memory: bool):
         """Dataset which loads the SDO Ml v2 dataset from a zarr directory.
         """
 
@@ -105,6 +106,10 @@ class SDOMLv2NumpyDataset(Dataset):
             attrs = dict(arr.attrs)
 
             images, attrs = self.data_quality_check(channel, images, attrs)
+            if reduce_memory:
+                minimal_keys = ["T_OBS", "WAVELNTH"]
+                attrs = {key: attrs[key] for key in minimal_keys}
+
             if freq:
                 images, attrs = self.temporal_downsampling(
                     channel, start, end, freq, images, attrs)
@@ -423,7 +428,8 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  skip_train_val: bool = False,
                  sampling_strategy: str = "chunk",
                  mask_limb: bool = False,
-                 mask_limb_radius_scale_factor: float = 1.0
+                 mask_limb_radius_scale_factor: float = 1.0,
+                 reduce_memory: bool = False
                  ):
         """
         Creates a LightningDataModule for the SDO Ml v2 dataset
@@ -462,6 +468,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             sampling_strategy (str, optional): [Which sampling strategy to use (chunk or default)]: Defaults to "chunk".
             mask_limb (bool, optional): [Whether to mask the solar limb]. Defaults to False.
             mask_limb_radius_scale_factor (float, optional): [Allows to scale the radius that is used for masking the solar limb]. Defaults to 1.0.
+            reduce_memory (bool, optional): [Reduces memory by only retaining required attributes]. Defaults to False.
         """
 
         super().__init__()
@@ -483,6 +490,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                 goes_cache_dir=goes_cache_dir,
                 channel=channel,
                 transforms=transforms,
+                reduce_memory=reduce_memory
             )
 
         self.dataset_test = SDOMLv2NumpyDataset(
@@ -498,6 +506,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             goes_cache_dir=goes_cache_dir,
             channel=channel,
             transforms=transforms,
+            reduce_memory=reduce_memory
         )
 
         if not skip_train_val:

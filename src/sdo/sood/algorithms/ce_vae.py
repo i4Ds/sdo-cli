@@ -563,7 +563,8 @@ def main(
                                                 test_end=config.data.sdo_ml_v2.test_end_date.value,
                                                 skip_train_val=True,
                                                 mask_limb=config.data.sdo_ml_v2.mask_limb.value,
-                                                mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value)
+                                                mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value,
+                                                reduce_memory=config.data.sdo_ml_v2.reduce_memory)
                 data_loader = data_module.predict_dataloader()
         for index, batch in tqdm(enumerate(data_loader)):
             # TODO attrs are not available for ImageParameterDataset
