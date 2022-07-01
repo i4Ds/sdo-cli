@@ -108,6 +108,8 @@ class SDOMLv2NumpyDataset(Dataset):
             images, attrs = self.data_quality_check(channel, images, attrs)
             if reduce_memory:
                 minimal_keys = ["T_OBS", "WAVELNTH"]
+                logger.info(
+                    f"reducing memory by retaining only the following attributes {minimal_keys}")
                 attrs = {key: attrs[key] for key in minimal_keys}
 
             if freq:

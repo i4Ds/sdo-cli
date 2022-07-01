@@ -456,7 +456,8 @@ def main(
                                                 train_val_split_temporal_chunk_size=config.data.sdo_ml_v2.train_val_split_temporal_chunk_size.value,
                                                 sampling_strategy=config.data.sdo_ml_v2.sampling_strategy.value,
                                                 mask_limb=config.data.sdo_ml_v2.mask_limb.value,
-                                                mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value)
+                                                mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value,
+                                                reduce_memory=config.data.sdo_ml_v2.reduce_memory)
 
         # config_exclude_keys are already logged from config directly
         wandb_logger = WandbLogger(
