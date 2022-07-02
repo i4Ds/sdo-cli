@@ -60,7 +60,8 @@ class SDOMLv2NumpyDataset(Dataset):
             goes_cache_dir: str,
             transforms: list,
             cache_max_size: int,
-            reduce_memory: bool):
+            reduce_memory: bool,
+            obs_times: list):
         """Dataset which loads the SDO Ml v2 dataset from a zarr directory.
         """
 
@@ -122,6 +123,10 @@ class SDOMLv2NumpyDataset(Dataset):
             if irradiance is not None:
                 images, attrs = self.irradiance_filtering(
                     channel, irradiance, irradiance_channel, goes_cache_dir, images, attrs)
+
+            if obs_times is not None:
+                images, attrs = self.t_obs_filtering(
+                    channel, obs_times, images, attrs)
             all_images.append(images)
             all_attrs.append(attrs)
 
@@ -182,6 +187,21 @@ class SDOMLv2NumpyDataset(Dataset):
         attrs = {keys: [values[idx] for idx in irr_index]
                  for keys, values in attrs.items()}
 
+        return images, attrs
+
+    def t_obs_filtering(self, channel, obs_times, images, attrs):
+        logger.info(
+            f"filtering for {len(obs_times)} obs times")
+
+        t_obs = np.array(attrs["T_OBS"])
+        df_time = pd.DataFrame(t_obs, index=np.arange(
+            np.shape(t_obs)[0]), columns=["Time"])
+        filter = np.isin(df_time['Time'], obs_times)
+
+        time_index = df_time['Time'].index[filter].tolist()
+        images = images[time_index, :, :]
+        attrs = {keys: [values[idx] for idx in time_index]
+                 for keys, values in attrs.items()}
         return images, attrs
 
     def temporal_filtering(self, channel, start, end, images, attrs):
@@ -420,6 +440,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  test_start=None,
                  test_end=None,
                  freq=None,
+                 obs_times: list = None,
                  irradiance: float = None,
                  irradiance_channel: str = "xrsb",
                  goes_cache_dir: str = None,
@@ -428,6 +449,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                  train_val_split_ratio: float = 0.7,
                  train_val_split_temporal_chunk_size: str = "14d",
                  skip_train_val: bool = False,
+                 skip_test: bool = False,
                  sampling_strategy: str = "chunk",
                  mask_limb: bool = False,
                  mask_limb_radius_scale_factor: float = 1.0,
@@ -459,6 +481,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             test_start (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             test_end (str, optional): [Allows to restrict the dataset temporally]. Defaults to None.
             freq (str, optional): [Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel. When using freq, start and end should also be specified for train and test]. Defaults to None.
+            obs_times (list, optional): [Allows to filter for specific observation times]. Defaults to None.
             irradiance (float, optional): Allows to filter by irradiance (all images with smaller or equal values will be in the resulting dataset). Defaults to None.
             irradiance_channel (str, optional): Either xrsa or xrsb. Refer to the GOES documentation. Defaults to "xrsb".
             goes_cache_dir (str, optional): Path to the cached GOES values (downloaded with sdo-cli goes download --help). Defaults to None.
@@ -467,6 +490,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             train_val_split_ratio (float, optional): [Split-ratio for the train-validation split]. Defaults to 0.7.
             train_val_split_temporal_chunk_size (str, optional): [Temporal chunks for the train-validation splits]. Defaults to "14d".
             skip_train_val (bool, optional): [Whether to skip loading the train and validation sets]: Defaults to False.
+            skip_test (bool, optional): [Whether to skip loading the test set]: Defaults to False.
             sampling_strategy (str, optional): [Which sampling strategy to use (chunk or default)]: Defaults to "chunk".
             mask_limb (bool, optional): [Whether to mask the solar limb]. Defaults to False.
             mask_limb_radius_scale_factor (float, optional): [Allows to scale the radius that is used for masking the solar limb]. Defaults to 1.0.
@@ -478,6 +502,26 @@ class SDOMLv2DataModule(pl.LightningDataModule):
         transforms = get_default_transforms(
             target_size=target_size, channel=channel, mask_limb=mask_limb, radius_scale_factor=mask_limb_radius_scale_factor)
 
+        # TODO this can be achieved with setup()
+        # https://pytorch-lightning.readthedocs.io/en/latest/api/pytorch_lightning.core.hooks.DataHooks.html#pytorch_lightning.core.hooks.DataHooks.setup
+        if not skip_test:
+            self.dataset_test = SDOMLv2NumpyDataset(
+                storage_root=storage_root,
+                storage_driver=storage_driver,
+                cache_max_size=cache_max_size,
+                year=test_year,
+                start=test_start,
+                end=test_end,
+                freq=freq,
+                obs_times=obs_times,
+                irradiance=irradiance,
+                irradiance_channel=irradiance_channel,
+                goes_cache_dir=goes_cache_dir,
+                channel=channel,
+                transforms=transforms,
+                reduce_memory=reduce_memory
+            )
+
         if not skip_train_val:
             dataset = SDOMLv2NumpyDataset(
                 storage_root=storage_root,
@@ -487,6 +531,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                 start=train_start,
                 end=train_end,
                 freq=freq,
+                obs_times=obs_times,
                 irradiance=irradiance,
                 irradiance_channel=irradiance_channel,
                 goes_cache_dir=goes_cache_dir,
@@ -494,24 +539,6 @@ class SDOMLv2DataModule(pl.LightningDataModule):
                 transforms=transforms,
                 reduce_memory=reduce_memory
             )
-
-        self.dataset_test = SDOMLv2NumpyDataset(
-            storage_root=storage_root,
-            storage_driver=storage_driver,
-            cache_max_size=cache_max_size,
-            year=test_year,
-            start=test_start,
-            end=test_end,
-            freq=freq,
-            irradiance=irradiance,
-            irradiance_channel=irradiance_channel,
-            goes_cache_dir=goes_cache_dir,
-            channel=channel,
-            transforms=transforms,
-            reduce_memory=reduce_memory
-        )
-
-        if not skip_train_val:
             if train_val_split_strategy == "random":
                 num_samples = len(dataset)
                 splits = [int(math.floor(num_samples*train_val_split_ratio)),
