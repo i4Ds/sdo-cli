@@ -318,7 +318,7 @@ class SDOMLv2NumpyDataset(Dataset):
 CHANNEL_PREPROCESS = {
     "94A": {"min": 0.1, "max": 800, "scaling": "log10"},
     "131A": {"min": 0.7, "max": 1900, "scaling": "log10"},
-    "171A": {"min": 5, "max": 3500, "scaling": "sqrt"},
+    "171A": {"min": 5, "max": 3500, "scaling": "log10"},
     "193A": {"min": 20, "max": 5500, "scaling": "log10"},
     "211A": {"min": 7, "max": 3500, "scaling": "log10"},
     "304A": {"min": 0.1, "max": 3500, "scaling": "log10"},
