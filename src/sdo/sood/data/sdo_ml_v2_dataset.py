@@ -193,9 +193,12 @@ class SDOMLv2NumpyDataset(Dataset):
         logger.info(
             f"filtering for {len(obs_times)} obs times")
 
-        t_obs = np.array(attrs["T_OBS"])
-        df_time = pd.DataFrame(t_obs, index=np.arange(
-            np.shape(t_obs)[0]), columns=["Time"])
+        obs_times = pd.to_datetime(obs_times, format=None, utc=True)
+        df_time = self.obs_time_as_df(channel, attrs)
+        # TODO remove this stripping
+        # strip microseconds as they are not present at prediction time where this filter is used
+        df_time["Time"] = df_time["Time"].apply(
+            lambda x: x.replace(microsecond=0))
         filter = np.isin(df_time['Time'], obs_times)
 
         time_index = df_time['Time'].index[filter].tolist()
@@ -309,10 +312,13 @@ class SDOMLv2NumpyDataset(Dataset):
 
 # TODO are these values still applicable for the new correction factors?
 # Same preprocess as github.com/i4Ds/SDOBenchmark
+# Notably in SDOBenchmark some of the preprocessing seems to be different from the preprocessing in Helioviewer
+# https://github.com/Helioviewer-Project/jp2gen/blob/master/idl/sdo/aia/hvs_default_aia.pro
+# e.g. AIA 171 has log10 scaling in SDO benchmark and sqrt scaling in Helioviewer
 CHANNEL_PREPROCESS = {
     "94A": {"min": 0.1, "max": 800, "scaling": "log10"},
     "131A": {"min": 0.7, "max": 1900, "scaling": "log10"},
-    "171A": {"min": 5, "max": 3500, "scaling": "log10"},
+    "171A": {"min": 5, "max": 3500, "scaling": "sqrt"},
     "193A": {"min": 20, "max": 5500, "scaling": "log10"},
     "211A": {"min": 7, "max": 3500, "scaling": "log10"},
     "304A": {"min": 0.1, "max": 3500, "scaling": "log10"},
@@ -357,7 +363,8 @@ def get_default_transforms(target_size=256, channel="171", mask_limb=False, radi
     preprocess_config = CHANNEL_PREPROCESS[channel]
 
     if preprocess_config["scaling"] == "log10":
-        # TODO does it make sense to use vflip(x) in order to align the solar North as in JHelioviewer? otherwise this has to be done during inference
+        # TODO does it make sense to use vflip(x) in order to align the solar North as in JHelioviewer?
+        # otherwise this has to be done during inference
         def lambda_transform(x): return torch.log10(torch.clamp(
             x,
             min=preprocess_config["min"],
@@ -366,6 +373,15 @@ def get_default_transforms(target_size=256, channel="171", mask_limb=False, radi
         mean = math.log10(preprocess_config["min"])
         std = math.log10(preprocess_config["max"]) - \
             math.log10(preprocess_config["min"])
+    elif preprocess_config["scaling"] == "sqrt":
+        def lambda_transform(x): return torch.sqrt(torch.clamp(
+            x,
+            min=preprocess_config["min"],
+            max=preprocess_config["max"],
+        ))
+        mean = math.sqrt(preprocess_config["min"])
+        std = math.sqrt(preprocess_config["max"]) - \
+            math.sqrt(preprocess_config["min"])
     else:
         def lambda_transform(x): return torch.clamp(
             x,
