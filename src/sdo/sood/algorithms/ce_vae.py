@@ -567,10 +567,12 @@ def main(
                                                 mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value,
                                                 reduce_memory=config.data.sdo_ml_v2.reduce_memory)
                 data_loader = data_module.predict_dataloader()
+        # TODO use predict step logic
         for index, batch in tqdm(enumerate(data_loader)):
             # TODO attrs are not available for ImageParameterDataset
             img, attrs = batch
-            timestamp = parse(attrs["T_OBS"][0])
+            t_obs = attrs["T_OBS"][0]
+            timestamp = parse(t_obs)
             wavelength = attrs["WAVELNTH"][0]
             file_name = Path(
                 f"{timestamp.strftime(folder_time_format)}_{wavelength}A.png")
@@ -589,5 +591,5 @@ def main(
                 # TODO make it work for batches instead of single images
                 sample_score = cevae_algo.score_sample(img[0])
                 with open(os.path.join(pred_dir, "predictions.txt"), "a") as target_file:
-                    target_file.write(file_path.name + "," +
-                                      str(sample_score) + "\n")
+                    target_file.write(
+                        f"{file_path.name},{str(sample_score)},{t_obs},{wavelength}\n")
