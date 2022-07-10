@@ -36,7 +36,7 @@ class SequenceInChunkSampler(torch.utils.data.sampler.Sampler):
     def __iter__(self):
         chunk_idxs = np.arange(0, len(self.data_source), self.chunksize)
         max_i = len(self.data_source)
-
+        np.random.shuffle(chunk_idxs)
         for chunk_idx in chunk_idxs:
             seqs = np.arange(
                 chunk_idx, min(chunk_idx + self.chunksize, max_i), self.seq_len

@@ -16,13 +16,7 @@ data:
   sdo_ml_v2:
     train_year:
       value:
-        - "2010"
         - "2012"
-        - "2013"
-        - "2015"
-        - "2017"
-        - "2018"
-        - "2020"
     train_start_date:
       value: null
     train_end_date:
@@ -30,9 +24,6 @@ data:
     test_year:
       value:
         - "2011"
-        - "2014"
-        - "2016"
-        - "2019"
     test_start_date:
       value: null
     test_end_date:
@@ -44,9 +35,9 @@ data:
     sampling_strategy:
       value: "chunk"
     mask_limb:
+      value: false
+    reduce_memory:
       value: true
-    mask_limb_radius_scale_factor:
-      value: 0.9
 predict:
   mode:
     value: sample
@@ -56,13 +47,17 @@ log_dir:
   value: "./output/train-sdo-ml"
 train:
   wandb_run_id:
-    value: "35pi1yaj"
+    value: null
   n_epochs:
     value: 20
   early_stopping:
     value: true
   use_geco:
+    value: false
+  profile:
     value: true
+  fast_dev_run:
+    value: 100
 devices:
   gpus:
     value:

@@ -1,10 +1,10 @@
 model:
   load_path:
-    value: null
+    value: "./artifacts/model-vzsks4y3:v11/model.ckpt"
 data:
   data_dir:
-    #value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_full/sdomlv2.zarr
-    value: /home/marius/data/sdomlv2_full/sdomlv2.zarr
+    value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_full/sdomlv2.zarr
+    #value: /home/marius/data/sdomlv2_full/sdomlv2.zarr
   dataset:
     value: SDOMLDatasetV2
   num_data_loader_workers:
@@ -43,10 +43,6 @@ data:
       value: 14d
     sampling_strategy:
       value: "chunk"
-    mask_limb:
-      value: true
-    mask_limb_radius_scale_factor:
-      value: 0.9
 predict:
   mode:
     value: sample
@@ -55,8 +51,6 @@ predict:
 log_dir:
   value: "./output/train-sdo-ml"
 train:
-  wandb_run_id:
-    value: "35pi1yaj"
   n_epochs:
     value: 20
   early_stopping:
@@ -66,4 +60,4 @@ train:
 devices:
   gpus:
     value:
-      - 3
+      - 2
