@@ -1,11 +1,9 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
 # https://towardsdatascience.com/variational-autoencoder-demystified-with-pytorch-implementation-3a06bee395ed
 import json
-from dateutil.parser import parse
 import datetime
 import os
 import sys
-from math import ceil
 from pathlib import Path
 import logging
 
@@ -23,13 +21,13 @@ from sdo.sood.data.sdo_ml_v1_dataset import SDOMLv1DataModule
 from sdo.sood.data.sdo_ml_v2_dataset import SDOMLv2DataModule
 from sdo.sood.models.aes import VAE
 from sdo.sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
+from sdo.sood.util.prediction_writer import BatchPredictionWriter
 from sdo.sood.util.utils import (get_smooth_image_gradient, read_config,
                                  tensor_to_image)
 from torch import optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
 from torchvision.utils import save_image
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -178,11 +176,11 @@ class ceVAE(pl.LightningModule):
         logger.warn("test step not defined")
         pass
 
-    def forward(self, x):
+    def forward(self, batch):
         if self.mode == "sample":
-            return self.score_sample(x)
+            return self.score_sample(batch)
         elif self.mode == "pixel":
-            return self.score_pixels(x)
+            return self.score_pixels(batch)
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
@@ -202,74 +200,42 @@ class ceVAE(pl.LightningModule):
             (datetime.datetime.now().isoformat() + "_generated.jpeg")
         save_image(pred, file_name, normalize=True)
 
-    def score_sample(self, data):
-        orig_shape = data.shape
-        to_transforms = torch.nn.Upsample(
-            (self.input_shape[2], self.input_shape[3]), mode="bilinear")
+    def score_sample(self, batch):
+        data, _ = batch
+        x_rec, z_dist = self.model(data, sample=False)
+        kl_loss = self.kl_loss_fn(z_dist, sum_samples=False)
+        rec_loss = self.rec_loss_fn(x_rec, data, sum_samples=False)
+        sample_scores = kl_loss * self.beta + rec_loss * self.theta
 
-        data_tensor = data
-        data_tensor = to_transforms(data_tensor[None])[0]
-        slice_scores = []
+        return sample_scores.cpu().tolist()
 
-        for i in range(ceil(orig_shape[0] / self.batch_size)):
-            batch = data_tensor[i *
-                                self.batch_size: (i + 1) * self.batch_size].unsqueeze(1)
-            # batch = batch * 2 - 1
-
-            with torch.no_grad():
-                inpt = batch.to(self.device).float()
-                x_rec, z_dist = self.model(inpt, sample=False)
-                kl_loss = self.kl_loss_fn(z_dist, sum_samples=False)
-                rec_loss = self.rec_loss_fn(x_rec, inpt, sum_samples=False)
-                img_scores = kl_loss * self.beta + rec_loss * self.theta
-
-            slice_scores += img_scores.cpu().tolist()
-
-        return np.max(slice_scores)
-
-    def score_pixels(self, data):
-        orig_shape = data.shape
-        to_transforms = torch.nn.Upsample(
-            (self.input_shape[2], self.input_shape[3]), mode="bilinear")
-        from_transforms = torch.nn.Upsample(
-            (orig_shape[1], orig_shape[2]), mode="bilinear")
-        data_tensor = data
-        data_tensor = to_transforms(data_tensor[None])[0]
-        target_tensor = torch.zeros_like(data_tensor)
-
-        for i in range(ceil(orig_shape[0] / self.batch_size)):
-            batch = data_tensor[i *
-                                self.batch_size: (i + 1) * self.batch_size].unsqueeze(1)
-
-            inpt = batch.to(self.device).float()
-            x_rec, z_dist = self.model(inpt, sample=False)
-
+    def score_pixels(self, batch):
+        data, _ = batch
+        with torch.enable_grad():
+            x_rec, _ = self.model(data, sample=False)
             if self.score_mode == "combi":
-                rec = torch.pow((x_rec - inpt), 2).detach().cpu()
+                rec = torch.pow((x_rec - data), 2).detach().cpu()
                 rec = torch.mean(rec, dim=1, keepdim=True)
 
                 def __err_fn(x):
                     x_r, z_d = self.model(x, sample=False)
                     loss = self.kl_loss_fn(z_d)
                     return loss
-
                 loss_grad_kl = (
                     get_smooth_image_gradient(
-                        model=self.model, inpt=inpt, err_fn=__err_fn, grad_type="vanilla", n_runs=2
+                        model=self.model, inpt=data, err_fn=__err_fn, grad_type="vanilla", n_runs=2
                     )
                     .detach()
                     .cpu()
                 )
-                loss_grad_kl = torch.mean(loss_grad_kl, dim=1, keepdim=True)
-
+                loss_grad_kl = torch.mean(
+                    loss_grad_kl, dim=1, keepdim=True)
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8) * rec
-
             elif self.score_mode == "rec":
-                rec = torch.pow((x_rec - inpt), 2).detach().cpu()
+                rec = torch.pow((x_rec - data), 2).detach().cpu()
                 rec = torch.mean(rec, dim=1, keepdim=True)
                 pixel_scores = rec
-
             elif self.score_mode == "grad":
                 def __err_fn(x):
                     x_r, z_d = self.model(x, sample=False)
@@ -277,34 +243,26 @@ class ceVAE(pl.LightningModule):
                     rec_loss_ = self.rec_loss_fn(x_r, x)
                     loss_ = kl_loss_ * self.beta + rec_loss_ * self.theta
                     return torch.mean(loss_)
-
                 loss_grad_kl = (
                     get_smooth_image_gradient(
-                        model=self.model, inpt=inpt, err_fn=__err_fn, grad_type="vanilla", n_runs=2
+                        model=self.model, inpt=data, err_fn=__err_fn, grad_type="vanilla", n_runs=2
                     )
                     .detach()
                     .cpu()
                 )
-                loss_grad_kl = torch.mean(loss_grad_kl, dim=1, keepdim=True)
-
+                loss_grad_kl = torch.mean(
+                    loss_grad_kl, dim=1, keepdim=True)
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8)
-
             # save_image_grid(inpt, name="Input", save_dir=self.work_dir, image_args={
             #     "normalize": True}, n_iter=index)
             # save_image_grid(x_rec, name="Output", save_dir=self.work_dir, image_args={
             #     "normalize": True}, n_iter=index)
             # save_image_grid(pixel_scores, name="Scores", save_dir=self.work_dir, image_args={
             #     "normalize": True}, n_iter=index)
+            pixel_scores = pixel_scores.detach().cpu()
 
-            target_tensor[i * self.batch_size: (
-                i + 1) * self.batch_size] = pixel_scores.detach().cpu()[:, 0, :]
-
-        target_tensor = from_transforms(target_tensor[None])[0]
-        # TODO rather normalize over the whole dataset rather than a single image
-        # save_image(target_tensor, file_name, normalize=True)
-
-        return target_tensor
+        return pixel_scores
 
     @staticmethod
     def kl_loss_fn(z_post, sum_samples=True, correct=False):
@@ -553,7 +511,7 @@ def main(
                                                 num_workers=config.data.num_data_loader_workers.value,
                                                 pin_memory=False,
                                                 target_size=input_shape[2],
-                                                batch_size=1,
+                                                batch_size=config.data.batch_size.value,
                                                 prefetch_factor=config.data.prefetch_factor.value,
                                                 channel=config.data.sdo_ml_v2.channel.value,
                                                 freq=config.data.sdo_ml_v2.freq.value,
@@ -567,29 +525,6 @@ def main(
                                                 mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value,
                                                 reduce_memory=config.data.sdo_ml_v2.reduce_memory)
                 data_loader = data_module.predict_dataloader()
-        # TODO use predict step logic
-        for index, batch in tqdm(enumerate(data_loader)):
-            # TODO attrs are not available for ImageParameterDataset
-            img, attrs = batch
-            t_obs = attrs["T_OBS"][0]
-            timestamp = parse(t_obs)
-            wavelength = attrs["WAVELNTH"][0]
-            file_name = Path(
-                f"{timestamp.strftime(folder_time_format)}_{wavelength}A.png")
-            file_path = Path(pred_dir) / file_name
-            if config.predict.mode.value == "pixel":
-                pixel_scores = cevae_algo.score_pixels(img[0])
-                # TODO rather normalize over the full dataset
-                save_src_image = False  # TODO make configurable
-                if save_src_image:
-                    src_file_name = Path(
-                        f"{timestamp.strftime(folder_time_format)}_{wavelength}A_src.png")
-                    src_file_path = Path(pred_dir) / src_file_name
-                    save_image(img[0], src_file_path)
-                save_image(pixel_scores, file_path, normalize=True)
-            if config.predict.mode.value == "sample":
-                # TODO make it work for batches instead of single images
-                sample_score = cevae_algo.score_sample(img[0])
-                with open(os.path.join(pred_dir, "predictions.txt"), "a") as target_file:
-                    target_file.write(
-                        f"{file_path.name},{str(sample_score)},{t_obs},{wavelength}\n")
+        trainer = pl.Trainer(
+            gpus=config.devices.gpus.value, accelerator="auto", callbacks=[BatchPredictionWriter(output_dir=pred_dir, mode=config.predict.mode.value)])
+        trainer.predict(cevae_algo, data_loader, return_predictions=False)

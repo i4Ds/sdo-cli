@@ -11,7 +11,7 @@ data:
   prefetch_factor:
     value: 2
   batch_size:
-    value: 1
+    value: 4
   sdo_ml_v2:
     storage_driver:
       value: gcs
@@ -27,6 +27,6 @@ data:
       value: 1h
 predict:
   mode:
-    value: pixel
+    value: sample
   pred_dir:
     value: "./output/predictions"
