@@ -331,11 +331,15 @@ folder_time_format = "%Y%m%d-%H%M%S"
 
 def main(
     run: str = "train",
-    config_file: Path = Path("./config/defaults.yaml")
+    config_file: Path = Path("./config/defaults.yaml"),
+    predict_mode: str = None,
+    config_overrides: dict = None
 ):
-    config = read_config(config_file)
+    config = read_config(config_file, config_overrides)
     logger.info("found config")
     logger.info(json.dumps(config, indent=2))
+
+    predict_mode = predict_mode or config.predict.mode.value
 
     current_run_name = f"{datetime.datetime.now().strftime(folder_time_format)}_cevae"
     work_dir = Path(config.log_dir.value) / Path(current_run_name)
@@ -347,7 +351,7 @@ def main(
 
     if config.model.load_path.value is not None:
         cevae_algo = ceVAE.load_from_checkpoint(
-            config.model.load_path.value, mode=config.predict.mode.value)
+            config.model.load_path.value, mode=predict_mode)
     else:
         cevae_algo = ceVAE(
             input_shape,
@@ -358,7 +362,7 @@ def main(
             beta=config.train.beta.value,
             ce_factor=config.model.ce_factor.value,
             score_mode=config.predict.score_mode.value,
-            mode=config.predict.mode.value,
+            mode=predict_mode,
             print_every_iter=config.train.print_every_iter.value
         )
 
@@ -510,6 +514,7 @@ def main(
                                                 storage_driver=config.data.sdo_ml_v2.storage_driver.value,
                                                 num_workers=config.data.num_data_loader_workers.value,
                                                 pin_memory=False,
+                                                obs_times=config.data.sdo_ml_v2.obs_times.value,
                                                 target_size=input_shape[2],
                                                 batch_size=config.data.batch_size.value,
                                                 prefetch_factor=config.data.prefetch_factor.value,
@@ -526,5 +531,5 @@ def main(
                                                 reduce_memory=config.data.sdo_ml_v2.reduce_memory)
                 data_loader = data_module.predict_dataloader()
         trainer = pl.Trainer(
-            gpus=config.devices.gpus.value, accelerator="auto", callbacks=[BatchPredictionWriter(output_dir=pred_dir, mode=config.predict.mode.value)])
+            gpus=config.devices.gpus.value, accelerator="auto", callbacks=[BatchPredictionWriter(output_dir=pred_dir, mode=predict_mode)])
         trainer.predict(cevae_algo, data_loader, return_predictions=False)
