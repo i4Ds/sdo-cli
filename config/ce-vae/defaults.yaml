@@ -88,6 +88,9 @@ data:
     reduce_memory:
       value: false
       desc: "Whether to reduce memory by only retaining required attributes."
+    obs_times:
+      value: null
+      desc: "Allows to filter by specific obs times (useful for prediction)."
 predict:
   mode:
     value: pixel

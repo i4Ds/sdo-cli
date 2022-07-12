@@ -286,7 +286,7 @@ def merge_config(user: dict, default: dict) -> dict:
     return user
 
 
-def read_config(config_file: Path) -> dict:
+def read_config(config_file: Path, overrides: dict = None) -> dict:
     config_file = Path(os.path.expanduser(config_file))
     with open(config_file, "r") as f:
         user_config = yaml.safe_load(f)
@@ -296,6 +296,9 @@ def read_config(config_file: Path) -> dict:
         with open(default_config_file, "r") as f:
             default_config = yaml.safe_load(f)
             user_config = merge_config(user_config, default_config)
+
+    if overrides:
+        user_config = merge_config(overrides, user_config)
 
     # Hack to convert dict to object
     return DefaultMunch.fromDict(user_config)

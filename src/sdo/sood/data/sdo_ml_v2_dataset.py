@@ -195,10 +195,6 @@ class SDOMLv2NumpyDataset(Dataset):
 
         obs_times = pd.to_datetime(obs_times, format=None, utc=True)
         df_time = self.obs_time_as_df(channel, attrs)
-        # TODO remove this stripping
-        # strip microseconds as they are not present at prediction time where this filter is used
-        df_time["Time"] = df_time["Time"].apply(
-            lambda x: x.replace(microsecond=0))
         filter = np.isin(df_time['Time'], obs_times)
 
         time_index = df_time['Time'].index[filter].tolist()
