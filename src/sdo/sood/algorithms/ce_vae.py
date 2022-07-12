@@ -530,6 +530,7 @@ def main(
                                                 mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value,
                                                 reduce_memory=config.data.sdo_ml_v2.reduce_memory)
                 data_loader = data_module.predict_dataloader()
+        logger.info(f"logging predictions to {pred_dir}")
         trainer = pl.Trainer(
             gpus=config.devices.gpus.value, accelerator="auto", callbacks=[BatchPredictionWriter(output_dir=pred_dir, mode=predict_mode)])
         trainer.predict(cevae_algo, data_loader, return_predictions=False)
