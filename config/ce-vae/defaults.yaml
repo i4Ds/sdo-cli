@@ -101,6 +101,9 @@ predict:
   score_mode:
     value: combi
     desc: "Score mode used for anomaly scoring ('rec', 'grad' or 'combi')"
+  save_src_img:
+    value: false
+    desc: "Whether to store the source image alongside the prediction (used for debugging)"
 train:
   wandb_run_id:
     value: null
