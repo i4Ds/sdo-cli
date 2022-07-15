@@ -1,4 +1,5 @@
 # adjusted from https://github.com/MIC-DKFZ/mood, Credit: D. Zimmerer
+import math
 import random
 
 import numpy as np
@@ -111,14 +112,11 @@ def get_square_mask(data_shape, square_size, n_squares, noise_val=(0, 0), channe
 
 
 def smooth_tensor(tensor, kernel_size=8, sigma=3, channels=1):
-
-    # Set these to whatever you want for your gaussian filter
-
     if kernel_size % 2 == 0:
         kernel_size -= 1
 
     # Create a x, y coordinate grid of shape (kernel_size, kernel_size, 2)
-    x_cord = torch.arange(kernel_size)
+    x_cord = torch.arange(kernel_size, device=tensor.device)
     x_grid = x_cord.repeat(kernel_size).view(kernel_size, kernel_size)
     y_grid = x_grid.t()
     xy_grid = torch.stack([x_grid, y_grid], dim=-1).float()
@@ -129,8 +127,6 @@ def smooth_tensor(tensor, kernel_size=8, sigma=3, channels=1):
     # Calculate the 2-dimensional gaussian kernel which is
     # the product of two gaussian distributions for two different
     # variables (in this case called x and y)
-    import math
-
     gaussian_kernel = (1.0 / (2.0 * math.pi * variance)) * torch.exp(
         -torch.sum((xy_grid - mean) ** 2.0, dim=-1) / (2.0 * variance)
     )
@@ -159,7 +155,6 @@ def smooth_tensor(tensor, kernel_size=8, sigma=3, channels=1):
 
 
 def normalize(tensor):
-
     tens_deta = tensor.detach().cpu()
     tens_deta -= float(np.min(tens_deta.numpy()))
     tens_deta /= float(np.max(tens_deta.numpy()))
