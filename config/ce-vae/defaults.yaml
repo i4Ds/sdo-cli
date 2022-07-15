@@ -135,6 +135,9 @@ train:
 log_dir:
   value: "./output/logs"
   desc: "Output directory for log."
+debug:
+  value: false
+  desc: "Whether to log additional debug information."
 devices:
   gpus:
     value: 1
