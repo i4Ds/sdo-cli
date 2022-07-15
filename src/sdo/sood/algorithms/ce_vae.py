@@ -29,6 +29,8 @@ from torch import optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
 from torchvision.utils import save_image
+import time
+
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +85,7 @@ class ceVAE(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, attrs = batch  # only inputs no labels
+        t_start = time.process_time()
 
         # VAE Part
         loss_vae = 0
@@ -153,6 +156,9 @@ class ceVAE(pl.LightningModule):
         self.log('train_loss', loss)
         self.log('train_loss_vae', loss_vae)
         self.log('train_loss_ce', loss_ce)
+
+        elapsed_time = time.process_time() - t_start
+        self.log('elapsed_time', elapsed_time)
 
         return {"loss": loss, "loss_vae": loss_vae, "loss_ce": loss_ce, "loss_vae_kl": loss_vae_kl, "loss_vae_rec": loss_vae_rec}
 
@@ -306,21 +312,6 @@ class ceVAE(pl.LightningModule):
             return -log_p_x_z
 
     @staticmethod
-    def get_inpt_grad(model, inpt, err_fn):
-        model.zero_grad()
-        inpt = inpt.detach()
-        inpt.requires_grad = True
-
-        err = err_fn(inpt)
-        err.backward()
-
-        grad = inpt.grad.detach()
-
-        model.zero_grad()
-
-        return torch.abs(grad.detach())
-
-    @staticmethod
     def geco_beta_update(beta, error_ema, goal, step_size, min_clamp=1e-10, max_clamp=1e4, speedup=None):
         constraint = (error_ema - goal).detach()
         if speedup is not None and constraint > 0.0:
@@ -332,12 +323,6 @@ class ceVAE(pl.LightningModule):
         if max_clamp is not None:
             beta = np.min((beta.item(), max_clamp))
         return beta
-
-    @staticmethod
-    def get_ema(new, old, alpha):
-        if old is None:
-            return new
-        return (1.0 - alpha) * new + alpha * old
 
 
 folder_time_format = "%Y%m%d-%H%M%S"
