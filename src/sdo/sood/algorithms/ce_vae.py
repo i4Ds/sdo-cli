@@ -5,6 +5,7 @@ import datetime
 import os
 import sys
 from pathlib import Path
+from typing import Any
 import logging
 
 import numpy as np
@@ -23,7 +24,7 @@ from sdo.sood.models.aes import VAE
 from sdo.sood.util.ce_noise import get_square_mask, normalize, smooth_tensor
 from sdo.sood.util.prediction_writer import BatchPredictionWriter
 from sdo.sood.util.utils import (get_smooth_image_gradient, read_config,
-                                 tensor_to_image)
+                                 tensor_to_image, save_image_grid)
 from torch import optim
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, Grayscale, Resize, ToTensor
@@ -44,7 +45,9 @@ class ceVAE(pl.LightningModule):
         ce_factor,
         score_mode,
         mode,
-        print_every_iter
+        print_every_iter,
+        debug: bool,
+        work_dir
     ):
         super().__init__()
 
@@ -60,6 +63,8 @@ class ceVAE(pl.LightningModule):
         self.lr = lr
         self.vae_loss_ema = 1
         self.theta = 1
+        self.debug = debug
+        self.work_dir = work_dir
 
         self.model = VAE(
             input_size=input_shape[1:], z_dim=z_dim, fmap_sizes=model_feature_map_sizes)
@@ -176,11 +181,14 @@ class ceVAE(pl.LightningModule):
         logger.warn("test step not defined")
         pass
 
-    def forward(self, batch):
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        self(batch, batch_idx=batch_idx)
+
+    def forward(self, batch, batch_idx: int = None):
         if self.mode == "sample":
             return self.score_sample(batch)
         elif self.mode == "pixel":
-            return self.score_pixels(batch)
+            return self.score_pixels(batch, batch_idx=batch_idx)
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
@@ -196,7 +204,10 @@ class ceVAE(pl.LightningModule):
         with torch.no_grad():
             pred = self.model.decode(z.to(self.device)).cpu()
 
-        file_name = Path(self.work_dir) / Path("generated") / \
+        output_dir = Path(self.work_dir) / Path("generated")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        file_name = output_dir / \
             (datetime.datetime.now().isoformat() + "_generated.jpeg")
         save_image(pred, file_name, normalize=True)
 
@@ -209,7 +220,7 @@ class ceVAE(pl.LightningModule):
 
         return sample_scores.cpu().tolist()
 
-    def score_pixels(self, batch):
+    def score_pixels(self, batch, batch_idx: int = None):
         data, _ = batch
         with torch.enable_grad():
             x_rec, _ = self.model(data, sample=False)
@@ -254,13 +265,16 @@ class ceVAE(pl.LightningModule):
                     loss_grad_kl, dim=1, keepdim=True)
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8)
-            # save_image_grid(inpt, name="Input", save_dir=self.work_dir, image_args={
-            #     "normalize": True}, n_iter=index)
-            # save_image_grid(x_rec, name="Output", save_dir=self.work_dir, image_args={
-            #     "normalize": True}, n_iter=index)
-            # save_image_grid(pixel_scores, name="Scores", save_dir=self.work_dir, image_args={
-            #     "normalize": True}, n_iter=index)
             pixel_scores = pixel_scores.detach().cpu()
+            if self.debug:
+                logger.info(
+                    f"Writing debug information about predictions to {self.work_dir}")
+                save_image_grid(data, name="Input", save_dir=self.work_dir, image_args={
+                    "normalize": True}, n_iter=batch_idx)
+                save_image_grid(x_rec, name="Reconstruction", save_dir=self.work_dir, image_args={
+                    "normalize": True}, n_iter=batch_idx)
+                save_image_grid(pixel_scores, name="Scores", save_dir=self.work_dir, image_args={
+                    "normalize": True}, n_iter=batch_idx)
 
         return pixel_scores
 
@@ -351,7 +365,7 @@ def main(
 
     if config.model.load_path.value is not None:
         cevae_algo = ceVAE.load_from_checkpoint(
-            config.model.load_path.value, mode=predict_mode)
+            config.model.load_path.value, mode=predict_mode,  debug=config.debug.value, work_dir=work_dir)
     else:
         cevae_algo = ceVAE(
             input_shape,
@@ -363,7 +377,9 @@ def main(
             ce_factor=config.model.ce_factor.value,
             score_mode=config.predict.score_mode.value,
             mode=predict_mode,
-            print_every_iter=config.train.print_every_iter.value
+            print_every_iter=config.train.print_every_iter.value,
+            debug=config.debug.value,
+            work_dir=work_dir
         )
 
     data_module = None

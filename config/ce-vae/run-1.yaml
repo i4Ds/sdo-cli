@@ -1,6 +1,9 @@
 model:
   load_path:
-    value: /Users/mariusgiger/Downloads/model-1l9kiqhd.ckpt
+    value: /Users/mariusgiger/Downloads/model-35pi1yaj_v12.ckpt #limb
+    #value: /Users/mariusgiger/Downloads/model-vzsks4y3.ckpt #default
+    #value: /Users/mariusgiger/Downloads/model-1l9kiqhd.ckpt # overfit
+
 data:
   data_dir:
     value: fdl-sdoml-v2/sdomlv2_small.zarr/
@@ -11,7 +14,7 @@ data:
   prefetch_factor:
     value: 2
   batch_size:
-    value: 4
+    value: 1
   sdo_ml_v2:
     storage_driver:
       value: gcs
@@ -25,10 +28,18 @@ data:
       value: "2010-08-29 23:59:59"
     train_val_split_temporal_chunk_size:
       value: 1h
+    mask_limb:
+      value: true
+    mask_limb_radius_scale_factor:
+      value: 0.9
 predict:
   mode:
     value: pixel
+  score_mode:
+    value: "rec"
   save_src_img:
     value: true
   pred_dir:
     value: "./output/predictions"
+debug:
+  value: true

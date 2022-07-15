@@ -1,4 +1,3 @@
-
 # Created by https://www.gitignore.io/api/python,virtualenv,jupyternotebook,jupyternotebooks
 # Edit at https://www.gitignore.io/?templates=python,virtualenv,jupyternotebook,jupyternotebooks
 
@@ -13,7 +12,6 @@
 ### JupyterNotebooks ###
 # gitignore template for Jupyter Notebooks
 # website: http://jupyter.org/
-
 
 # Remove previous ipynb_checkpoints
 #   git rm -r .ipynb_checkpoints/
@@ -269,3 +267,4 @@ modules.xml
 tmp/
 wandb/
 model/
+lightning_logs

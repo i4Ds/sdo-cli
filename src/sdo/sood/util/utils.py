@@ -223,7 +223,7 @@ def save_image_grid(tensor, name, save_dir, n_iter=None, prefix=False, iter_form
         tensor = tensor[:, 0:1, ]
 
     if n_iter is not None:
-        name = name_and_iter_to_filename(name=name, n_iter=n_iter, ending=".png", iter_format=iter_format,
+        name = name_and_iter_to_filename(name=name, n_iter=n_iter, extension=".png", iter_format=iter_format,
                                          prefix=prefix)
     elif not name.endswith(".png"):
         name += ".png"
@@ -239,12 +239,12 @@ def save_image_grid(tensor, name, save_dir, n_iter=None, prefix=False, iter_form
     return str(img_file)
 
 
-def name_and_iter_to_filename(name, n_iter, ending, iter_format="{:05d}", prefix=False):
+def name_and_iter_to_filename(name, n_iter, extension, iter_format="{:05d}", prefix=False):
     iter_str = iter_format.format(n_iter)
     if prefix:
-        name = iter_str + "_" + name + ending
+        name = iter_str + "_" + name + extension
     else:
-        name = name + "_" + iter_str + ending
+        name = name + "_" + iter_str + extension
 
     return name
 
