@@ -1,3 +1,5 @@
+from matplotlib.colors import LinearSegmentedColormap
+from sunpy.visualization.colormaps import cm
 from munch import DefaultMunch
 import json
 import random
@@ -302,3 +304,23 @@ def read_config(config_file: Path, overrides: dict = None) -> dict:
 
     # Hack to convert dict to object
     return DefaultMunch.fromDict(user_config)
+
+
+# Channels that correspond to HMI Magnetograms
+HMI_WL = ['Bx', 'By', 'Bz']
+
+# A colormap for visualizing HMI
+HMI_CM = LinearSegmentedColormap.from_list(
+    "bwrblack", ["#0000ff", "#000000", "#ff0000"])
+
+
+def channel_to_map(name):
+    """Given channel name, return colormap"""
+    return HMI_CM if name in HMI_WL else cm.cmlist.get('sdoaia%d' % int(name))
+
+
+def colorize_sdo(X, channel=171):
+    """Given image and channel, visualize results"""
+    cm = channel_to_map(channel)
+    Xcv = cm(X)
+    return (Xcv[:, :, :3]*255).astype(np.uint8)

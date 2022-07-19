@@ -114,7 +114,8 @@ class ceVAE(pl.LightningModule):
                 ce_tensor = torch.from_numpy(ce_tensor).float()
                 ce_tensor = ce_tensor.type_as(x)
                 inpt_noisy = torch.where(ce_tensor != 0, ce_tensor, x)
-                x_rec_ce, _ = self.model(inpt_noisy)
+                # TODO verify the impact of sampling
+                x_rec_ce, _ = self.model(inpt_noisy, sample=False)
                 rec_loss_ce = self.rec_loss_fn(x_rec_ce, x)
                 loss_ce = rec_loss_ce
 
@@ -181,14 +182,14 @@ class ceVAE(pl.LightningModule):
                 {"val_images": [wandb.Image(tensor_to_image(
                     x, normalize=False), caption="Input"), wandb.Image(tensor_to_image(
                         x_rec, normalize=False), caption="Output")]})
-        return loss
+        return {"loss": loss, "val_loss_kl": kl_loss, "val_loss_rec": rec_loss}
 
     def test_step(self, batch, batch_idx):
         logger.warn("test step not defined")
         pass
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
-        self(batch, batch_idx=batch_idx)
+        return self(batch, batch_idx=batch_idx)
 
     def forward(self, batch, batch_idx: int = None):
         if self.mode == "sample":
@@ -198,24 +199,41 @@ class ceVAE(pl.LightningModule):
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
-    def generate(self, n_samples=16, mu=None, std=None):
-        if mu is None:
-            mu = torch.zeros_like(torch.empty(self.z_dim, 1, 1))
-        if std is None:
-            std = torch.ones_like(torch.empty(self.z_dim, 1, 1))
+    def generate(self, n_samples=1, n_iter=128, mu=None, std=None, with_cm=False):
+        for i in range(n_iter):
+            if mu is None:
+                mu = torch.zeros_like(torch.empty(self.z_dim, 1, 1))
+            if std is None:
+                std = torch.ones_like(torch.empty(self.z_dim, 1, 1))
 
-        p = torch.distributions.Normal(mu, std)
-        z = p.rsample((n_samples,))
+            p = torch.distributions.Normal(mu, std)
+            z = p.rsample((n_samples,))
 
-        with torch.no_grad():
-            pred = self.model.decode(z.to(self.device)).cpu()
+            with torch.no_grad():
+                pred = self.model.decode(z.to(self.device)).cpu()
 
-        output_dir = Path(self.work_dir) / Path("generated")
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        file_name = output_dir / \
-            (datetime.datetime.now().isoformat() + "_generated.jpeg")
-        save_image(pred, file_name, normalize=True)
+            output_dir = Path(self.work_dir) / Path("generated")
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            file_name = output_dir / \
+                f"{datetime.datetime.now().strftime(folder_time_format)}_{i}_generated.jpeg"
+
+            if with_cm:
+                from PIL import Image
+                from sunpy.visualization.colormaps import cm
+                from torchvision.utils import make_grid
+
+                grid = make_grid(pred, normalize=True)
+                ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(
+                    1, 2, 0).to("cpu", torch.uint8).numpy()
+                m = cm.cmlist.get('sdoaia%d' % int(171))
+                v = np.squeeze(ndarr[:, :, 0])
+                v = m(v)
+                v = (v[:, :, :3]*255).astype(np.uint8)
+                im = Image.fromarray(v)
+                im.save(file_name)
+            else:
+                save_image(pred, file_name, normalize=True)
 
     def score_sample(self, batch):
         data, _ = batch

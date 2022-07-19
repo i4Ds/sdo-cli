@@ -588,7 +588,7 @@ class SDOMLv2DataModule(pl.LightningDataModule):
             sampler = SequenceInChunkSampler(self.dataset_val)
         return DataLoader(self.dataset_val, batch_size=self.batch_size,
                           shuffle=self.shuffle,
-                          num_workers=self.num_workers,
+                          num_workers=math.ceil(self.num_workers/2),
                           pin_memory=self.pin_memory,
                           drop_last=self.drop_last,
                           prefetch_factor=self.prefetch_factor,
