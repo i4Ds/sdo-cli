@@ -45,6 +45,7 @@ def load_data(ctx, data_dir, start, end, freq='60min', metadata=False, aia_wavel
 
     meta_path = Path(data_dir) / "meta.csv"
     if metadata:
+        # TODO only override if not exists
         with open(meta_path, 'w', encoding='utf-8') as f:
             writer = csv.DictWriter(
                 f, fieldnames=['QUALITY', 'DSUN', 'X0', 'R_SUN', 'Y0', 'CDELT', 'FILE_NAME'])
