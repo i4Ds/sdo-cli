@@ -199,7 +199,7 @@ class ceVAE(pl.LightningModule):
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
-    def generate(self, n_samples=1, n_iter=128, mu=None, std=None, with_cm=False):
+    def generate(self, n_samples=32, n_iter=16, mu=None, std=None, with_cm=False):
         for i in range(n_iter):
             if mu is None:
                 mu = torch.zeros_like(torch.empty(self.z_dim, 1, 1))
@@ -233,7 +233,7 @@ class ceVAE(pl.LightningModule):
                 im = Image.fromarray(v)
                 im.save(file_name)
             else:
-                save_image(pred, file_name, normalize=True)
+                save_image(pred, file_name, normalize=True, scale_each=True)
 
     def score_sample(self, batch):
         data, _ = batch
