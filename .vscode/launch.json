@@ -58,7 +58,21 @@
         "--config-file=./config/ce-vae/run-1.yaml"
       ]
     },
-
+    {
+      "name": "Python: SDO CLI Predict Threshold",
+      "type": "python",
+      "request": "launch",
+      "stopOnEntry": false,
+      "justMyCode": false,
+      "program": "${workspaceRoot}/src/sdo/cli.py",
+      "console": "integratedTerminal",
+      "args": [
+        "sood",
+        "threshold",
+        "predict",
+        "--config-file=./config/ce-vae/run-1.yaml"
+      ]
+    },
     {
       "name": "Python: SDO CLI Generate",
       "type": "python",
