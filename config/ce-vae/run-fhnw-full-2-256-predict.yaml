@@ -1,6 +1,6 @@
 model:
   load_path:
-    value: null
+    value: /home/marius/sdo-cli/artifacts/model-3hwi52fc:v3/model.ckpt
   z_dim:
     value: 256
 data:
@@ -11,9 +11,9 @@ data:
   num_data_loader_workers:
     value: 16
   prefetch_factor:
-    value: 6
+    value: 4
   batch_size:
-    value: 8
+    value: 32
   sdo_ml_v2:
     train_year:
       value:
@@ -44,10 +44,6 @@ data:
       value: 14d
     sampling_strategy:
       value: "chunk"
-    mask_limb:
-      value: true
-    mask_limb_radius_scale_factor:
-      value: 0.9
 predict:
   mode:
     value: sample

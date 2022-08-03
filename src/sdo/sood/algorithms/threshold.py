@@ -100,7 +100,7 @@ def main(
                         target_file.write(
                             f"{file_path.name},{str(score)},{t_obs},{wavelength}\n")
                 elif predict_mode == "pixel":
-                    ndarr[ndarr < threshold] = 0
+                    ndarr[ndarr <= threshold] = 0
 
                     def normalize(img, low, high):
                         img = img.clip(low, high)

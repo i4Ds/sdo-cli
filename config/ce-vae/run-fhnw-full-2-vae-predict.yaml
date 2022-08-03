@@ -15,7 +15,7 @@ data:
   prefetch_factor:
     value: 4
   batch_size:
-    value: 8
+    value: 32
   sdo_ml_v2:
     train_year:
       value:

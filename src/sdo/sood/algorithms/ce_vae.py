@@ -199,7 +199,11 @@ class ceVAE(pl.LightningModule):
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
-    def generate(self, n_samples=32, n_iter=16, mu=None, std=None, with_cm=False):
+    def generate(self, n_samples=1, n_iter=256, mu=None, std=None, with_cm=False):
+        output_dir = Path(self.work_dir) / Path("generated")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        logger.info(f"writing generated examples to {output_dir}")
         for i in range(n_iter):
             if mu is None:
                 mu = torch.zeros_like(torch.empty(self.z_dim, 1, 1))
@@ -212,9 +216,6 @@ class ceVAE(pl.LightningModule):
             with torch.no_grad():
                 pred = self.model.decode(z.to(self.device)).cpu()
 
-            output_dir = Path(self.work_dir) / Path("generated")
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
             file_name = output_dir / \
                 f"{datetime.datetime.now().strftime(folder_time_format)}_{i}_generated.jpeg"
 
