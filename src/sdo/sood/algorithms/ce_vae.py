@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 import logging
-
+from dateutil.parser import parse
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -165,6 +165,7 @@ class ceVAE(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, _ = batch
+        # TODO why no sampling during validation?
         x_rec, z_dist = self.model(x, sample=False)
         kl_loss = 0
         if self.beta > 0:
@@ -184,6 +185,40 @@ class ceVAE(pl.LightningModule):
                         x_rec, normalize=False), caption="Output")]})
         return {"loss": loss, "val_loss_kl": kl_loss, "val_loss_rec": rec_loss}
 
+    def reconstruct(self, batch, sample=False):
+        x, attrs = batch
+        save_path = self.work_dir / Path("reconstructions")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        logger.info(f"writing reconstructions to {save_path}")
+        with torch.no_grad():
+            mu, std = self.model.encode(x)
+            z_dist = dist.Normal(mu, std)
+            if sample:
+                z_sample = z_dist.rsample()
+            else:
+                z_sample = mu
+            x_rec = self.model.decode(z_sample)
+
+            for idx in range(len(x_rec)):
+                x_rec_i, mu_i, std_i = x_rec[idx], mu[idx], std[idx]
+
+                t_obs = attrs["T_OBS"][idx]
+                wavelength = attrs["WAVELNTH"][idx]
+                timestamp = parse(t_obs)
+                file_name = f"{timestamp.strftime(folder_time_format)}_{wavelength}A"
+                input_img = tensor_to_image(x[idx])
+                input_img.save(save_path / Path(
+                    f"{file_name}_src.png"))
+                rec_img = tensor_to_image(x_rec_i)
+                rec_img.save(save_path / Path(
+                    f"{file_name}_rec.png"))
+
+                torch.save(mu_i, save_path / Path(
+                    f"{file_name}_mu.pt"))
+                torch.save(std_i, save_path / Path(
+                    f"{file_name}_std.pt"))
+
     def test_step(self, batch, batch_idx):
         logger.warn("test step not defined")
         pass
@@ -199,7 +234,7 @@ class ceVAE(pl.LightningModule):
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
-    def generate(self, n_samples=1, n_iter=256, mu=None, std=None, with_cm=False):
+    def generate(self, n_samples=16, n_iter=8, mu=None, std=None, with_cm=False):
         output_dir = Path(self.work_dir) / Path("generated")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -495,7 +530,7 @@ def main(
         cevae_algo.eval()
         cevae_algo.generate()
 
-    if run == "predict":
+    if run == "predict" or run == "reconstruct":
         cevae_algo.eval()
         pred_dir = config.predict.pred_dir.value
         if pred_dir is None:
@@ -550,7 +585,11 @@ def main(
                                                 mask_limb_radius_scale_factor=config.data.sdo_ml_v2.mask_limb_radius_scale_factor.value,
                                                 reduce_memory=config.data.sdo_ml_v2.reduce_memory)
                 data_loader = data_module.predict_dataloader()
-        logger.info(f"logging predictions to {pred_dir}")
-        trainer = pl.Trainer(
-            gpus=config.devices.gpus.value, accelerator="auto", callbacks=[BatchPredictionWriter(output_dir=pred_dir, mode=predict_mode, save_src_img=config.predict.save_src_img.value)])
-        trainer.predict(cevae_algo, data_loader, return_predictions=False)
+        if run == "reconstruct":
+            for _, batch in enumerate(data_module.predict_dataloader()):
+                cevae_algo.reconstruct(batch)
+        elif run == "predict":
+            logger.info(f"logging predictions to {pred_dir}")
+            trainer = pl.Trainer(
+                gpus=config.devices.gpus.value, accelerator="auto", callbacks=[BatchPredictionWriter(output_dir=pred_dir, mode=predict_mode, save_src_img=config.predict.save_src_img.value)])
+            trainer.predict(cevae_algo, data_loader, return_predictions=False)
