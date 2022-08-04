@@ -13,6 +13,8 @@ import pytorch_lightning as pl
 import torch
 import torch.distributions as dist
 import wandb
+from torch.nn import MSELoss, L1Loss
+from torchmetrics import StructuralSimilarityIndexMeasure
 from pytorch_lightning.callbacks import (EarlyStopping, ModelCheckpoint,
                                          ModelSummary)
 from pytorch_lightning.loggers import WandbLogger
@@ -191,6 +193,15 @@ class ceVAE(pl.LightningModule):
         if not os.path.exists(save_path):
             os.makedirs(save_path)
         logger.info(f"writing reconstructions to {save_path}")
+
+        ssim = StructuralSimilarityIndexMeasure()
+        mse = MSELoss()
+        mae = L1Loss()
+        loss_path = save_path / Path("reconstruction_loss.csv")
+        if not os.path.exists(loss_path):
+            with open(loss_path, "a") as target_file:
+                target_file.write(
+                    f"pixel_pred_path,ssim,mse,mae,t_obs,wavelength\n")
         with torch.no_grad():
             mu, std = self.model.encode(x)
             z_dist = dist.Normal(mu, std)
@@ -201,7 +212,7 @@ class ceVAE(pl.LightningModule):
             x_rec = self.model.decode(z_sample)
 
             for idx in range(len(x_rec)):
-                x_rec_i, mu_i, std_i = x_rec[idx], mu[idx], std[idx]
+                x_i, x_rec_i, mu_i, std_i = x[idx], x_rec[idx], mu[idx], std[idx]
 
                 t_obs = attrs["T_OBS"][idx]
                 wavelength = attrs["WAVELNTH"][idx]
@@ -218,6 +229,15 @@ class ceVAE(pl.LightningModule):
                     f"{file_name}_mu.pt"))
                 torch.save(std_i, save_path / Path(
                     f"{file_name}_std.pt"))
+
+                x_rec_i = x_rec_i[None, :, :, :]
+                x_i = x_i[None, :, :, :]
+                x_ssim = ssim(x_rec_i, x_i)
+                x_mse = mse(x_rec_i, x_i)
+                x_mae = mae(x_rec_i, x_i)
+                with open(loss_path, "a") as target_file:
+                    target_file.write(
+                        f"{file_name},{str(x_ssim.numpy())},{str(x_mse.numpy())},{str(x_mae.numpy())},{t_obs},{wavelength}\n")
 
     def test_step(self, batch, batch_idx):
         logger.warn("test step not defined")
