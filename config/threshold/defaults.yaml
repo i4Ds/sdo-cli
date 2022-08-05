@@ -1,0 +1,97 @@
+model:
+  target_size:
+    value: 256
+    desc: "Target size of the reconstructed output"
+data:
+  batch_size:
+    value: 16
+    desc: "How many samples per batch to load"
+  channel:
+    value: "171A"
+    desc: "Channel name that should be used. If None all available channels will be used."
+  data_dir:
+    value: ./data
+    desc: "Path to the root directory of the dataset"
+  dataset:
+    value: SDOMLDatasetV2
+    desc: "Which dataset to use (CuratedImageParameterDataset, SDOMLDatasetV1 or SDOMLDatasetV2)"
+  num_data_loader_workers:
+    value: 0
+    desc: "How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
+  prefetch_factor:
+    value: 4
+    desc: "Number of samples loaded in advance by each worker. 2 means there will be a total of 2 * num_workers samples prefetched across all workers."
+  pin_memory:
+    value: false
+    desc: "If true, the data loader will copy Tensors into CUDA pinned memory before returning them"
+  sdo_ml_v2:
+    storage_driver:
+      value: fs
+      desc: "Storage driver used to load the data. Either 'gcs' (Google Storage Bucket) or 'fs' (local file system)"
+    channel:
+      value: "171A"
+      desc: "Allows to filter the dataset by channel. If None all available channels will be used."
+    train_year:
+      value: "2010"
+      desc: "Allows to prefilter the dataset by year. If None all available years will be used."
+    train_start_date:
+      value: "2010-08-30 00:00:00"
+      desc: "Allows to restrict the dataset temporally"
+    train_end_date:
+      value: "2010-08-30 23:59:59"
+      desc: "Allows to restrict the dataset temporally"
+    test_year:
+      value: "2010"
+      desc: "Allows to prefilter the dataset by year. If None all available years will be used."
+    test_start_date:
+      value: "2010-08-29 00:00:00"
+      desc: "Allows to restrict the dataset temporally"
+    test_end_date:
+      value: "2010-08-29 23:59:59"
+      desc: "Allows to restrict the dataset temporally"
+    irradiance:
+      value: null
+      desc: "Allows to filter by irradiance (all images with smaller or equal values will be in the resulting dataset). Defaults to None."
+    goes_cache_dir:
+      value: null
+      desc: Path to the cached GOES values (downloaded with sdo-cli goes download --help). Defaults to None.
+    freq:
+      value: null
+      desc: "Allows to downsample the dataset temporally, should be bigger than the min interval for the observed channel. When using freq, start and end should also be specified for train and test"
+    train_val_split_ratio:
+      value: 0.7
+      desc: "Split-ratio for the train-validation split"
+    train_val_split_temporal_chunk_size:
+      value: 14d
+      desc: "Temporal chunk size for the train-validation splits."
+    sampling_strategy:
+      value: "chunk"
+      desc: "Which sampling strategy to use (chunk or default)."
+    mask_limb:
+      value: false
+      desc: "Whether to mask the solar limb."
+    mask_limb_radius_scale_factor:
+      value: 1.0
+      desc: "Allows to scale the radius that is used for masking the solar limb (>1.0 the radius is asssumed to be bigger, <1.0 the radius is assumed to be smaller"
+    reduce_memory:
+      value: false
+      desc: "Whether to reduce memory by only retaining required attributes."
+    obs_times:
+      value: null
+      desc: "Allows to filter by specific obs times (useful for prediction)."
+predict:
+  mode:
+    value: pixel
+    desc: "Mode for anomaly scoring (pixel or sample)"
+  pred_dir:
+    value: "./output/predictions"
+    desc: "Output directory for predictions."
+  save_src_img:
+    value: false
+    desc: "Whether to store the source image alongside the prediction (used for debugging)"
+log_dir:
+  value: "./output/logs"
+  desc: "Output directory for log."
+debug:
+  value: false
+  desc: "Whether to log additional debug information."
