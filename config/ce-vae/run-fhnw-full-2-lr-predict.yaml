@@ -1,6 +1,6 @@
 model:
   load_path:
-    value: null
+    value: /home/marius/sdo-cli/artifacts/model-kselxcp3:v3/model.ckpt
 data:
   data_dir:
     value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_full/sdomlv2.zarr
