@@ -254,7 +254,7 @@ class ceVAE(pl.LightningModule):
         else:
             raise ValueError(f"invalid mode {self.mode}")
 
-    def generate(self, n_samples=16, n_iter=8, mu=None, std=None, with_cm=False):
+    def generate(self, n_samples=1, n_iter=128, mu=None, std=None, with_cm=False):
         output_dir = Path(self.work_dir) / Path("generated")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
