@@ -95,7 +95,7 @@ def main(
                         with open(score_path, "a") as target_file:
                             target_file.write(
                                 f"pixel_pred_path,score,t_obs,wavelength\n")
-                    score = ndarr.mean() + 2.0 * ndarr.std()
+                    score = x.mean().numpy() + x.std().numpy()
                     with open(score_path, "a") as target_file:
                         target_file.write(
                             f"{file_path.name},{str(score)},{t_obs},{wavelength}\n")
