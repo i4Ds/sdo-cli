@@ -327,7 +327,7 @@ class ceVAE(pl.LightningModule):
                 rec = torch.pow((x_rec - data), 2).detach().cpu()
                 rec = torch.mean(rec, dim=1, keepdim=True)
                 pixel_scores = rec
-            elif self.score_mode == "grad2":
+            elif self.score_mode == "kl_grad":
                 rec = torch.pow((x_rec - data), 2).detach().cpu()
                 rec = torch.mean(rec, dim=1, keepdim=True)
 
@@ -346,7 +346,7 @@ class ceVAE(pl.LightningModule):
                     loss_grad_kl, dim=1, keepdim=True)
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8)
-            elif self.score_mode == "grad":
+            elif self.score_mode == "elbo_grad":
                 def __err_fn(x):
                     x_r, z_d = self.model(x, sample=False)
                     kl_loss_ = self.kl_loss_fn(z_d)
@@ -364,6 +364,22 @@ class ceVAE(pl.LightningModule):
                     loss_grad_kl, dim=1, keepdim=True)
                 pixel_scores = smooth_tensor(
                     normalize(loss_grad_kl), kernel_size=8)
+            elif self.score_mode == "rec_grad":
+                def __err_fn(x):
+                    x_r, z_d = self.model(x, sample=False)
+                    loss = self.rec_loss_fn(x_r, x)
+                    return torch.mean(loss)
+                loss_grad_rec = (
+                    get_smooth_image_gradient(
+                        model=self.model, inpt=data, err_fn=__err_fn, grad_type="vanilla", n_runs=2
+                    )
+                    .detach()
+                    .cpu()
+                )
+                loss_grad_rec = torch.mean(
+                    loss_grad_rec, dim=1, keepdim=True)
+                pixel_scores = smooth_tensor(
+                    normalize(loss_grad_rec), kernel_size=8)
             pixel_scores = pixel_scores.detach().cpu()
             if self.debug:
                 logger.info(

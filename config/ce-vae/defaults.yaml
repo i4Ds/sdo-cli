@@ -100,7 +100,7 @@ predict:
     desc: "Output directory for predictions."
   score_mode:
     value: combi
-    desc: "Score mode used for anomaly scoring ('rec', 'grad' or 'combi')"
+    desc: "Score mode used for anomaly scoring ('rec', 'kl_grad', 'rec_grad', 'elbo_grad' or 'combi')"
   save_src_img:
     value: false
     desc: "Whether to store the source image alongside the prediction (used for debugging)"
