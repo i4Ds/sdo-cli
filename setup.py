@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="sdo-cli",
-    version="0.0.14",
+    version="0.0.16",
     author="Marius Giger",
     author_email="marius.giger@fhnw.ch",
     description="An ML practitioner's utility for working with SDO data.",
@@ -36,6 +36,7 @@ setup(
                       "sunpy>=3.1.6",
                       "torch>=1.11.0",
                       "tqdm>=4.64.0",
+                      "torchmetrics>=0.8.2",
                       "torchvision>=0.12.0",
                       "wandb>=0.12.15",
                       "zeep>=4.1.0",

@@ -424,7 +424,7 @@ def main(
 
     if config.model.load_path.value is not None:
         cevae_algo = ceVAE.load_from_checkpoint(
-            config.model.load_path.value, mode=predict_mode,  debug=config.debug.value, work_dir=work_dir)
+            config.model.load_path.value, mode=predict_mode,  debug=config.debug.value, work_dir=work_dir, score_mode=config.predict.score_mode.value)
     else:
         cevae_algo = ceVAE(
             input_shape,
