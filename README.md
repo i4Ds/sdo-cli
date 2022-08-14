@@ -172,6 +172,8 @@ sdo-cli events get --start="2012-01-01T00:00:00" --end="2012-01-02T23:59:59" --e
 #### Downloading the GOES timeseries
 
 ```
+# Please install either pyarrow or fastparquet
+pip install pyarrow
 sdo-cli goes download --start=2010-01-01T00:00:00 --end=2020-12-31T23:59:59 --output=./tmp/goes
 ```
 

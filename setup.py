@@ -1,17 +1,18 @@
-from setuptools import setup, find_packages, find_namespace_packages
+from setuptools import setup, find_packages
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+pkgs = find_packages(where='src')
 setup(
     name="sdo-cli",
-    version="0.0.16",
+    version="0.0.18",
     author="Marius Giger",
     author_email="marius.giger@fhnw.ch",
     description="An ML practitioner's utility for working with SDO data.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(where='src'),
+    packages=pkgs,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
