@@ -1,3 +1,6 @@
+#
+# Predict config for a threshold-based baseline model.
+#
 data:
   data_dir:
     value: /mnt/nas05/astrodata01/astroml_data/sdomlv2_full/sdomlv2.zarr

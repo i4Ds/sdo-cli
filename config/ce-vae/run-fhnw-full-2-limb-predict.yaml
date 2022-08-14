@@ -1,3 +1,6 @@
+#
+# Predict config for a limb-masking model (0.9 x disk size)
+#
 model:
   load_path:
     value: /home/marius/sdo-cli/artifacts/model-1techh13:v5/model.ckpt

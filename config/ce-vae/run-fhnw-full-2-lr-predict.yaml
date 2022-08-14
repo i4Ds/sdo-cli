@@ -1,3 +1,6 @@
+#
+# Predict config for a default-128 ceVAE model with a small learning rate.
+#
 model:
   load_path:
     value: /home/marius/sdo-cli/artifacts/model-kselxcp3:v3/model.ckpt

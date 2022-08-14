@@ -1,3 +1,6 @@
+#
+# Predict config for a default-256 ceVAE model.
+#
 model:
   load_path:
     value: /home/marius/sdo-cli/artifacts/model-3hwi52fc:v3/model.ckpt

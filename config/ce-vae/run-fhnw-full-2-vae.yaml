@@ -1,3 +1,6 @@
+#
+# Train config for a standard VAE.
+#
 model:
   load_path:
     value: null

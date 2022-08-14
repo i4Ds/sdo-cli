@@ -1,3 +1,6 @@
+#
+# Train config for a default-256 ceVAE model.
+#
 model:
   load_path:
     value: null

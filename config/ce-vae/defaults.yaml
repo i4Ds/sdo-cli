@@ -1,3 +1,6 @@
+#
+# Default configuration options. The default options are overridden by specific run configurations if placed in the same folder.
+#
 model:
   target_size:
     value: 256

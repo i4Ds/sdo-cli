@@ -1,3 +1,6 @@
+#
+# Predict config for a standard VAE.
+#
 model:
   load_path:
     value: /home/marius/sdo-cli/artifacts/model-3e6o9hed:v3/model.ckpt

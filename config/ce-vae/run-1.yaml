@@ -1,9 +1,17 @@
+#
+# Run config for local testing using the small SDO ML v2 dataset.
+#
 model:
   load_path:
-    value: /Users/mariusgiger/Downloads/model-35pi1yaj_v12.ckpt #limb
+    #value: /Users/mariusgiger/Downloads/model-35pi1yaj_v12.ckpt #limb
     #value: /Users/mariusgiger/Downloads/model-vzsks4y3.ckpt #default
     #value: /Users/mariusgiger/Downloads/model-1l9kiqhd.ckpt # overfit
-
+    #value: /Users/mariusgiger/Downloads/model-6lc0brue_v2.ckpt #default new
+    #value: /Users/mariusgiger/Downloads/model-6lc0brue_v3.ckpt #default new
+    #value: /Users/mariusgiger/Downloads/model-3e6o9hed_v3.ckpt #vae 128
+    #value: /Users/mariusgiger/Downloads/model-3hwi52fc_v3.ckpt #256
+    #value: /Users/mariusgiger/Downloads/model-1techh13_v5.ckpt #limb
+    value: /Users/mariusgiger/Downloads/model-kselxcp3_v3.ckpt #128 lr
 data:
   data_dir:
     value: fdl-sdoml-v2/sdomlv2_small.zarr/
@@ -14,7 +22,7 @@ data:
   prefetch_factor:
     value: 2
   batch_size:
-    value: 1
+    value: 2
   sdo_ml_v2:
     storage_driver:
       value: gcs
@@ -23,20 +31,22 @@ data:
     train_end_date:
       value: "2010-08-30 23:59:59"
     test_start_date:
-      value: "2010-08-29 00:00:00"
+      value: "2010-08-15 00:00:00"
     test_end_date:
       value: "2010-08-29 23:59:59"
     train_val_split_temporal_chunk_size:
       value: 1h
     mask_limb:
-      value: true
+      value: false
     mask_limb_radius_scale_factor:
       value: 0.9
+    freq:
+      value: "1d"
 predict:
   mode:
-    value: pixel
+    value: sample
   score_mode:
-    value: "rec"
+    value: "combi"
   save_src_img:
     value: true
   pred_dir:
