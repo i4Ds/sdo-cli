@@ -20,6 +20,8 @@ data:
   batch_size:
     value: 8
   sdo_ml_v2:
+    channel:
+      value: "193A"
     train_year:
       value:
         - "2010"
