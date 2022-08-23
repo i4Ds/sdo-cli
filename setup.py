@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 pkgs = find_packages(where='src')
 setup(
     name="sdo-cli",
-    version="0.0.18",
+    version="0.0.19",
     author="Marius Giger",
     author_email="marius.giger@fhnw.ch",
     description="An ML practitioner's utility for working with SDO data.",
