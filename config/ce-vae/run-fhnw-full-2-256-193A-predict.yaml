@@ -3,7 +3,7 @@
 #
 model:
   load_path:
-    value: /home/marius/sdo-cli/artifacts/model-2y3by6g6:v4/model.ckpt
+    value: /home/marius/sdo-cli/artifacts/model-2mwwoo1y:v3/model.ckpt
   z_dim:
     value: 256
 data:
@@ -20,6 +20,8 @@ data:
   batch_size:
     value: 32
   sdo_ml_v2:
+    channel:
+      value: "193A"
     train_year:
       value:
         - "2010"
