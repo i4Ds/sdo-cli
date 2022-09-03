@@ -19,7 +19,7 @@ data:
     value: 32
   sdo_ml_v2:
     channel:
-      value: "193A"
+      value: "171A"
     train_year:
       value:
         - "2010"
