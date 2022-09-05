@@ -49,7 +49,8 @@ class BatchPredictionWriter(BasePredictionWriter):
                     src_file_name = Path(
                         f"{timestamp.strftime(folder_time_format)}_{wavelength}A_src.png")
                     src_file_path = self.output_dir / src_file_name
-                    save_image(src_image, src_file_path, normalize=False)
+                    save_image(src_image, src_file_path,
+                               normalize=True, value_range=(-1.0, 1.0))
             elif self.mode == "sample":
                 with open(score_path, "a") as target_file:
                     target_file.write(
