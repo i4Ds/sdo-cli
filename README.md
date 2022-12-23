@@ -5,6 +5,8 @@
 
 A practitioner's utility for working with SDO data.
 
+**The results of the Master's thesis accompanying this source code can be found in [`./docs/MG_Masters_Thesis_final.pdf`](./docs/MG_Masters_Thesis_final.pdf)**
+
 - [Installation](#installation)
 - [Usage](#usage)
   - [Data](#data)
