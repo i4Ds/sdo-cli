@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 pkgs = find_packages(where='src')
 setup(
     name="sdo-cli",
-    version="0.0.19",
+    version="0.0.21",
     author="Marius Giger",
     author_email="marius.giger@fhnw.ch",
     description="An ML practitioner's utility for working with SDO data.",
@@ -20,7 +20,7 @@ setup(
     ],
     include_package_data=True,
     python_requires='>=3.8',
-    install_requires=["beautifulsoup4>=4.11.1"
+    install_requires=["beautifulsoup4>=4.11.1",
                       "click>=8.1.2",
                       "dask>=2022.5.0",
                       "drms>=0.6.2",
